@@ -29,8 +29,8 @@ const TeamCard = (props) => {
                             )}
                         </Dropdown.Menu>
                     </Dropdown>
-                    {favorite && favorite["id"] ? <Button variant='danger'> <FaHeart/> </Button> :
-                        <Button className="bg-light text-dark" onClick={() => makeFavorite(id)}><FaHeart/></Button>}
+                    {favorite && favorite["id"] ? <Button variant='light'> <FaHeart className='text-danger'/> </Button> :
+                        <Button variant="outline-secondary" className="" onClick={() => makeFavorite(id)}><FaHeart/></Button>}
                 </Stack>
 
 

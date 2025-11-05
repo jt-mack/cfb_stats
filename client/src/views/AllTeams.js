@@ -29,7 +29,7 @@ const AllTeams = (props) => {
     }
 
     const createTableDefinitions = (teamArray) => {
-        var table_order = ["id", "name", "abbreviation"];
+        var table_order = ["id", "name"];
         const firstEntry = teamArray[0];
         var cols = Object.keys(firstEntry)
             .sort((a, b) => table_order.indexOf(a) - table_order.indexOf(b))
@@ -45,8 +45,7 @@ const AllTeams = (props) => {
         const rows = teamArray.map((row, i) => {
 
             row["rank"] = row["rank"] == 0 ? "Not Ranked" : row["rank"];
-            row["name"] = row["name"] + " " + `(${row["abbreviation"]})`;
-            delete row["abbreviation"];
+           
             return row;
         })
 
