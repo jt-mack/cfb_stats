@@ -25,15 +25,16 @@ const BarChart = (props) => {
         datasets
     }
     return <Bar
+    className='d-flex grow flex-grow'
         options={{
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
         }}
         data={data}
         {...props}
         style={{
             backgroundColor: 'inherit',
-            maxHeight: "50vh",
-            height:"35vh",
+            // maxHeight: "50vh",
+            // height:"35vh",
             ...props.style
         }}
     />

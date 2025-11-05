@@ -44,7 +44,7 @@ const standingsTable = (props) => <>
                         <span> <img src={props.conference?.logo} className='table-image'
                             alt={props.conference?.name} /></span>}
                     </div>
-                    {game?.startDate ? <div class="text-center text-small small"> {new Date(game?.startDate).toLocaleDateString('en-us')} <span> {new Date(game?.startDate).toLocaleTimeString('en-us', { timeStyle: "short" })}</span> </div> : <div>TBD</div>}
+                    {game?.startDate ? <div className="text-center text-small small"> {new Date(game?.startDate).toLocaleDateString('en-us')} <span> {new Date(game?.startDate).toLocaleTimeString('en-us', { timeStyle: "short" })}</span> </div> : <div>TBD</div>}
 
                     <div className={'my-auto d-flex gap-1 align-items-center'}><span>{game.venue} </span><IconForTeam game={game}
                         team={props.team?.nickname} /></div>
@@ -60,20 +60,20 @@ const standingsTable = (props) => <>
                                 <thead>
                                     <tr>
                                         <th></th>
-                                        {game?.homeLineScores?.length > 0 && game.homeLineScores.map((score, i) => <th class="mx-auto text-center">{i >= 4 ? "OT" : i + 1}</th>)}
-                                        <th class="mx-auto text-end">{game?.completed ? "F" : ""}</th>
+                                        {game?.homeLineScores?.length > 0 && game.homeLineScores.map((score, i) => <th className="mx-auto text-center">{i >= 4 ? "OT" : i + 1}</th>)}
+                                        <th className="mx-auto text-end">{game?.completed ? "F" : ""}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
                                         <td>{game?.awayTeam}</td>
-                                        {game?.awayLineScores?.length > 0 && game.awayLineScores.map((score, i) => <td class="mx-auto text-center">{score}</td>)}
+                                        {game?.awayLineScores?.length > 0 && game.awayLineScores.map((score, i) => <td className="mx-auto text-center">{score}</td>)}
                                         <td className={'text-end fw-bold'}>{game?.awayPoints}</td>
 
                                     </tr>
                                     <tr>
                                         <td>{game?.homeTeam}</td>
-                                        {game?.homeLineScores?.length > 0 && game.homeLineScores.map((score, i) => <td class="mx-auto text-center">{score}</td>)}
+                                        {game?.homeLineScores?.length > 0 && game.homeLineScores.map((score, i) => <td className="mx-auto text-center">{score}</td>)}
                                         <td className={'text-end fw-bold'}>{game?.homePoints}</td>
 
                                     </tr>

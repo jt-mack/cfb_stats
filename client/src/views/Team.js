@@ -9,6 +9,7 @@ import TeamCard from '../components/cards/TeamCard';
 import BarChart from '../components/charts/BarChart';
 import StandingsTable from "../components/tables/standingsTable";
 import Schedule from "../components/tables/schedule";
+import Roster from './partials/Roster';
 
 const getFavorites = (team_id) => {
     const favorites = JSON.parse(localStorage.getItem("favorites"));
@@ -265,6 +266,9 @@ function Team() {
                                                         {nextMatchup && nextMatchup[0] ? <NextEvent {...nextMatchup[0]}  /> :
                                                             <p>This team is coming up on a bye week. Check back next week.</p>}
                                                         </>
+                                                    </Tab>
+                                                    <Tab eventKey="roster" title="Roster">
+                                                        <Roster id={team.id}/>
                                                     </Tab>
                                                 </Tabs>
 

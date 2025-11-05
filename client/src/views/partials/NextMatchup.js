@@ -140,19 +140,19 @@ const NextMatchup = (props) => {
             <Row>
 
                 {matchup && gameInfo && gameInfo["venue"] &&
-                    <Col md={5}>
+                    <Col md={6}>
                         <ImageCard {...createPropsForImgCard(matchup)}/>
                     </Col>
                 }
                 {matchup && matchup["game"] && game && boxScore && boxScore["teams"] &&
-                    <Col md={5}>
+                    <Col md={6}>
 
                         <BarChart {...createDataSetsFromBoxScore(boxScore)} />
                     </Col>
                 }
-                {typeof extraData != 'undefined' && extraData && <Col md={2} className={'text-center align-items-center my-auto text-dark'}>
+                {game && game?.odds?.homeWinProbability && <Col md={2} className={'text-center align-items-center my-auto text-dark'}>
                     <WinPercentage logoUrl={homeTeam.logo}
-                                   percentage={((extraData?.odds?.homeWinProb ?? 1) * 100).toFixed(2)}
+                                   percentage={((game?.odds?.homeWinProbability ?? 1) * 100).toFixed(2)}
                                    size={200}
                                    color={homeTeam?.color ? `#${homeTeam.color}` : 'gray'}/>
                     <h4>{extraData?.odds?.spread > 0 ? `+${extraData?.odds.spread}` : extraData?.odds.spread}</h4>

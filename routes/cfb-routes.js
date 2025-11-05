@@ -146,8 +146,14 @@ router.get('/team/:team_id/players', async (req, res) => {
     const {team_id} = req.params;
     const {season} = req.query;
     try {
-        const {players} = await sdv.cfb.getTeamPlayers(team_id);
-        res.json(players);
+        // if(cfbCache.has(`teamPlayers_${team_id}`)){
+        //     const cachedTeamPlayers=cfbCache.get(`teamPlayers_${team_id}`)
+        //     return res.json(JSON.parse(cachedTeamPlayers))
+        // }
+        const {team} = await sdv.cfb.getTeamPlayers(team_id);
+        const {athletes} =team
+        cfbCache.set(`teamPlayers_${team_id}`,JSON.stringify(athletes));
+        res.json(athletes);
 
     } catch (error) {
         console.error({error})
