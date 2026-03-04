@@ -3,7 +3,12 @@ import Form from 'react-bootstrap/Form';
 
 function YearSelect(props) {
     const { handleChange, value } = props;
-    const currentYear = new Date().getFullYear();
+    let today=new Date();
+    let currentYear = today.getFullYear();
+    let currentMonth = today.getMonth();
+    if(currentMonth <=7){
+        currentYear=currentYear-1;
+    }
     const minYear = currentYear - 10;
     const years=[];
     for (let i = currentYear; i >= minYear; i--) {

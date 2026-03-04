@@ -1,6 +1,7 @@
-const express = require('express');
-const dotenv = require('dotenv');
-const path = require('path');
+
+import express, {Request,Response} from 'express';
+import dotenv from 'dotenv';
+import path from 'path';
 const port = process.env.PORT || 5000;
 
 
@@ -21,7 +22,10 @@ app.use(express.static(path.join(__dirname, 'client/build')));
 
 const collegeFootball = require("./routes/cfb-routes");
 
+import cfbdRouter from './routes/cfbd-routes'
+
 app.use('/api/cfb', collegeFootball);
+app.use('/api/cfb/v2',cfbdRouter);
 
 
 if (process.env.NODE_ENV === "production") {

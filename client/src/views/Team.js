@@ -95,7 +95,7 @@ function Team() {
     }
 
     const getSchedule = async (team_name) => {
-        const response = await fetch(`/api/cfb/schedule/${team_name}?season=${globalState.season}`);
+        const response = await fetch(`/api/cfb/v2/schedule/${team_name}?season=${globalState.season}`);
         const schedule = await response.json();
         if (response.status !== 200) {
             throw Error(standings)
@@ -179,6 +179,8 @@ function Team() {
                 short_date = new Date(nextEvent[0].date).toLocaleDateString('en-US')
             }
         }
+
+        console.log({standingSummary});
         return {
             id,
             abbreviation,
@@ -186,7 +188,7 @@ function Team() {
             conferenceLogo: conference?.logo,
             logo: logos[0]?.href,
             "Next Game": `${short_name} on ${short_date}`,
-            record: record.items[0],
+            record: record?.items?.[0] || "0-0",
             rank,
             standing: standingSummary
         }
@@ -268,7 +270,7 @@ function Team() {
                                                         </>
                                                     </Tab>
                                                     <Tab eventKey="roster" title="Roster">
-                                                        <Roster id={team.id}/>
+                                                        <Roster id={team.id} slug={team.name} />
                                                     </Tab>
                                                 </Tabs>
 

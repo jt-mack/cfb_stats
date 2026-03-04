@@ -10,18 +10,25 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
 // Create a context
-const GlobalStateContext = createContext();
+const GlobalStateContext = createContext<any>({conferences:[],season:2025});
 
 
 // Create a custom hook for easy access
 export const useGlobalState = () => useContext(GlobalStateContext);
-export const GlobalStateProvider =  ({children}) => {
+export const GlobalStateProvider =  ({children}:{children:any}) => {
 
+    let currentDate=new Date();
+    let currentMonth=currentDate.getMonth();
+    let currentYear=currentDate.getFullYear();
+    if(currentMonth <=7){
+        currentYear=currentYear-1;
+    }
+    
 
     const [globalState, setGlobalState] = useState({
         // Your global state here
-        conferences:localStorage.getItem('conferences') ? JSON.parse(localStorage.getItem('conferences')) : [],
-        season:localStorage.getItem('selected_season') ?? new Date().getFullYear().toString(),
+        conferences:localStorage.getItem('conferences') ? JSON.parse(localStorage.getItem('conferences') ?? '') : [],
+        season:localStorage.getItem('selected_season') ?? currentYear.toString(),
     });
 
     async function getNcaaConferences() {

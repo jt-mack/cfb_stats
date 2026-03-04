@@ -4,12 +4,18 @@ const NodeCache = require("node-cache");
 const sdv = require("sportsdataverse");
 
 const fbsTeamGroupId = 80;
-const defaultSeason = new Date().getFullYear();
+let today=new Date();
+let currentMonth=today.getMonth();
+let defaultSeason = today.getFullYear();
 const cfbCache = new NodeCache();
 
-const CfbRepo = require('../repos/cfb-data-repo').default;
+const CfbRepo = require('../repos/cfbd-repo').default;
 
 const cfbRepo = new CfbRepo();
+if(currentMonth <= 7 ){
+    defaultSeason = defaultSeason-1;
+}
+
 
 router.get('/teams', async (req, res) => {
     const {season} = req.query;
@@ -60,7 +66,7 @@ router.get('/teams', async (req, res) => {
     } catch (error) {
         console.error({error})
         // console.log({status:response.status})
-        res.status(error.response.status).json({error})
+        res.status(error?.response?.status || 500).json({error})
     }
 });
 
@@ -142,6 +148,24 @@ router.get('/team/:team_id/information', async (req, res) => {
     }
 });
 
+// router.get('/team/:team_id/players', async (req, res) => {
+//     const {team_id} = req.params;
+//     const {season} = req.query;
+//     try {
+//         // if(cfbCache.has(`teamPlayers_${team_id}`)){
+//         //     const cachedTeamPlayers=cfbCache.get(`teamPlayers_${team_id}`)
+//         //     return res.json(JSON.parse(cachedTeamPlayers))
+//         // }
+//         const {team} = await sdv.cfb.getTeamPlayers(team_id);
+//         const {athletes} =team
+//         cfbCache.set(`teamPlayers_${team_id}`,JSON.stringify(athletes));
+//         res.json(athletes);
+
+//     } catch (error) {
+//         console.error({error})
+//         res.status(error.response.status).json({error})
+//     }
+// });
 router.get('/team/:team_id/players', async (req, res) => {
     const {team_id} = req.params;
     const {season} = req.query;
@@ -150,8 +174,9 @@ router.get('/team/:team_id/players', async (req, res) => {
         //     const cachedTeamPlayers=cfbCache.get(`teamPlayers_${team_id}`)
         //     return res.json(JSON.parse(cachedTeamPlayers))
         // }
-        const {team} = await sdv.cfb.getTeamPlayers(team_id);
-        const {athletes} =team
+
+        const athletes = await cfbRepo.doFetch(`roster?team=${team_id}&year=${season}`);
+
         cfbCache.set(`teamPlayers_${team_id}`,JSON.stringify(athletes));
         res.json(athletes);
 
