@@ -1,72 +1,47 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Card, Row, Col, Image, ListGroup, ButtonGroup, ToggleButton, Form, Dropdown } from "react-bootstrap";
+import { Card, Row, Col, ListGroup, ButtonGroup, ToggleButton, Form } from "react-bootstrap";
 import { BsSortNumericDown, BsSortAlphaDown } from 'react-icons/bs';
+import { getRoster } from '../../repos/teamsRepo';
 
+
+// CFBD RosterPlayer: id, firstName, lastName, team, height, weight, jersey, year, position (string)
+const fullName = (p) => [p.firstName, p.lastName].filter(Boolean).join(' ') || p.id;
 
 const RosterList = ({ players = [] }) => {
     return (
         <Row xs={1} md={2} lg={3} className="g-3 text-dark">
-            {players.map((player) => {
-                const playerCardLink = player.links?.find((l) =>
-                    l.rel?.includes("playercard")
-                )?.href;
-
-                return (
-                    <Col key={player.id}>
-                        <Card className="h-100 shadow-sm">
-                            <Card.Body className="d-flex justify-content-between">
-                                <div className="d-flex">
-                                    <Image
-                                        src={player.headshot?.href}
-                                        alt={player.headshot?.alt || player.fullName}
-                                        rounded
-                                        style={{ width: "75px", height: "75px", objectFit: "cover" }}
-                                        className="me-3"
-                                    />
-
-                                    <div>
-                                        <Card.Title className="mb-0">
-                                            {player.fullName}
-                                        </Card.Title>
-                                        <Card.Subtitle className="text-muted mb-2">
-                                            #{player.jersey} • {player.position?.abbreviation}
-                                        </Card.Subtitle>
-
-                                        <ListGroup variant="flush" className="small">
-                                            <ListGroup.Item className="p-0 border-0">
-                                                {player.displayHeight} • {player.displayWeight}
-                                            </ListGroup.Item>
-                                            <ListGroup.Item className="p-0 border-0">
-                                                {player.experience?.displayValue || ""}
-                                            </ListGroup.Item>
-                                        </ListGroup>
-                                    </div>
+            {players.map((player) => (
+                <Col key={player.id}>
+                    <Card className="h-100 shadow-sm">
+                        <Card.Body className="d-flex justify-content-between">
+                            <div className="d-flex">
+                                <div
+                                    className="me-3 rounded bg-secondary d-flex align-items-center justify-content-center text-white"
+                                    style={{ width: 75, height: 75 }}
+                                >
+                                    #{player.jersey ?? '—'}
                                 </div>
-                                <Dropdown className="justify-self-end">
-                                    <Dropdown.Toggle variant={"outline-secondary"} >
-                                        Player Links
-                                    </Dropdown.Toggle>
-
-                                    <Dropdown.Menu>
-                                        {player?.links?.map((link, index) =>
-                                            <Dropdown.Item href={link.href} key={index}
-                                                target={"_blank"}>{link.text}</Dropdown.Item>
-                                        )}
-                                    </Dropdown.Menu>
-                                </Dropdown>
-                            </Card.Body>
-
-                            {playerCardLink && (
-                                <Card.Footer className="text-center">
-                                    <a href={playerCardLink} target="_blank" rel="noopener noreferrer">
-                                        View Player Profile
-                                    </a>
-                                </Card.Footer>
-                            )}
-                        </Card>
-                    </Col>
-                );
-            })}
+                                <div>
+                                    <Card.Title className="mb-0">
+                                        {fullName(player)}
+                                    </Card.Title>
+                                    <Card.Subtitle className="text-muted mb-2">
+                                        #{player.jersey ?? '—'} • {player.position ?? '—'}
+                                    </Card.Subtitle>
+                                    <ListGroup variant="flush" className="small">
+                                        <ListGroup.Item className="p-0 border-0">
+                                            {player.height != null ? `${player.height}"` : '—'} • {player.weight != null ? `${player.weight} lbs` : '—'}
+                                        </ListGroup.Item>
+                                        <ListGroup.Item className="p-0 border-0">
+                                            {player.year != null ? `Year: ${player.year}` : ''}
+                                        </ListGroup.Item>
+                                    </ListGroup>
+                                </div>
+                            </div>
+                        </Card.Body>
+                    </Card>
+                </Col>
+            ))}
         </Row>
     );
 };
@@ -83,7 +58,7 @@ const Roster = (props) => {
         if (roster.length > 0) {
             const unique = new Set();
             roster.forEach((p) => {
-                if (p.position?.abbreviation) unique.add(p.position.abbreviation);
+                if (p.position) unique.add(p.position);
             });
             return Array.from(unique).sort();
         }
@@ -91,33 +66,24 @@ const Roster = (props) => {
     }, [roster]);
 
     const sortedAndFilteredRoster = useMemo(() => {
-        if (roster && roster.length > 0) {
-
-            let result = [...roster];
-            if (positionFilter != "all") {
-                result = result.filter(p => p.position?.abbreviation === positionFilter)
-            }
-            if (sortMode === "number") {
-                result.sort((a, b) => (parseInt(a.jersey) || 0) - (parseInt(b.jersey) || 0));
-            } else {
-                result.sort((a, b) => a.fullName.localeCompare(b.fullName));
-            }
-            return result;
+        if (!roster || roster.length === 0) return [];
+        let result = [...roster];
+        if (positionFilter !== "all") {
+            result = result.filter((p) => p.position === positionFilter);
         }
+        if (sortMode === "number") {
+            result.sort((a, b) => (Number(a.jersey) || 0) - (Number(b.jersey) || 0));
+        } else {
+            result.sort((a, b) => fullName(a).localeCompare(fullName(b)));
+        }
+        return result;
     }, [roster, sortMode, positionFilter]);
 
-
-    const getRoster = async (id) => {
-        const result = await fetch(`/api/cfb/team/${id}/players`)
-        const roster = await result.json();
-        return roster
-    }
-
     useEffect(() => {
-        if (id) {
-            getRoster(id).then(roster => setRoster(roster))
-        }
-    }, [id])
+        if (!id) return;
+        const season = props.season ? Number(props.season) : undefined;
+        getRoster(id, season).then(setRoster).catch(() => setRoster([]));
+    }, [id, props.season]);
 
     return (
         <div>
