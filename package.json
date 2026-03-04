@@ -33,10 +33,9 @@
     "start:dev": "concurrently \"npm run server:dev\" \"npm run client\"",
     "server:dev": "tsx watch server.ts --ignore 'client/*'",
     "client": "cd client-next && npm run dev",
-    "build": "npm run build:server && npm run build:client",
+    "build": "npm run build:server && (cd client-next && npm install && npm run build)",
     "build:server": "tsc",
     "build:client": "cd client-next && npm run build",
-    "install": "npm install && cd client-next && npm install",
     "heroku-postbuild": "npm run build"
   }
 }
