@@ -212,20 +212,20 @@ export default function TeamPageClient() {
       <TeamCard {...teamSummary}>
         <TeamDetails team={team} conferenceName={conference?.name} />
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-zinc-800 border border-zinc-700 text-zinc-300 gap-0.5 p-0.5 sm:gap-1 sm:p-1">
-            <TabsTrigger value="schedule" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm py-2 px-2 sm:py-1.5">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-zinc-800 border border-zinc-700 text-zinc-300 gap-0.5 sm:gap-1 ">
+            <TabsTrigger value="schedule" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm">
               Schedule
             </TabsTrigger>
-            <TabsTrigger value="standings" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm py-2 px-2 sm:py-1.5">
+            <TabsTrigger value="standings" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm">
               Standings
             </TabsTrigger>
-            <TabsTrigger value="next-matchup" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm py-2 px-2 sm:py-1.5">
+            <TabsTrigger value="next-matchup" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm">
               Next Game
             </TabsTrigger>
-            <TabsTrigger value="roster" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm py-2 px-2 sm:py-1.5">
+            <TabsTrigger value="roster" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm">
               Roster
             </TabsTrigger>
-            <TabsTrigger value="coach" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm py-2 px-2 sm:py-1.5">
+            <TabsTrigger value="coach" className="data-[state=active]:bg-zinc-700 data-[state=active]:text-zinc-100 text-xs sm:text-sm">
               Coach
             </TabsTrigger>
           </TabsList>

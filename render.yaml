@@ -1,0 +1,8 @@
+# Render Blueprint – ensures install runs before build
+# See: https://docs.render.com/blueprint-spec
+services:
+  - type: web
+    runtime: node
+    name: cfb-stats
+    buildCommand: yarn install --frozen-lockfile && yarn build
+    startCommand: yarn start:prod
