@@ -1,12 +1,13 @@
 import { getConferences, getTeams, getRecords } from 'cfbd';
+import type { GetConferencesResponse, GetRecordsResponse } from 'cfbd';
 import { unwrap } from '../lib/cfbd-client';
 
 export class ConferencesRepo {
   /**
    * Get all conferences (CFBD returns FBS conferences).
    */
-  async getConferences() {
-    return unwrap(getConferences({}));
+  async getConferences(): Promise<GetConferencesResponse> {
+    return unwrap<GetConferencesResponse>(getConferences({}));
   }
 
   /**
@@ -20,7 +21,7 @@ export class ConferencesRepo {
   /**
    * Get conference standings/records for a conference and year.
    */
-  async getConferenceRecords(conferenceAbbr: string, year: number) {
-    return unwrap(getRecords({ query: { conference: conferenceAbbr, year } }));
+  async getConferenceRecords(conferenceAbbr: string, year: number): Promise<GetRecordsResponse> {
+    return unwrap<GetRecordsResponse>(getRecords({ query: { conference: conferenceAbbr, year } }));
   }
 }

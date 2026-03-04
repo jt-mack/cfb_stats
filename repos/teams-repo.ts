@@ -1,5 +1,5 @@
 import { getFbsTeams, getRoster, getCoaches } from 'cfbd';
-import type { Team } from 'cfbd';
+import type { Team, GetFbsTeamsResponse } from 'cfbd';
 import { unwrap } from '../lib/cfbd-client';
 
 export class TeamsRepo {
@@ -8,7 +8,7 @@ export class TeamsRepo {
    * Fetches FBS teams for the year and returns the match.
    */
   async getTeamInfo(teamIdOrSchool: string, year: number): Promise<Team | null> {
-    const teams = await unwrap(getFbsTeams({ query: { year } }));
+    const teams = await unwrap<GetFbsTeamsResponse>(getFbsTeams({ query: { year } }));
     const idNum = Number(teamIdOrSchool);
     if (!Number.isNaN(idNum)) {
       return teams.find((t) => t.id === idNum) ?? null;

@@ -1,5 +1,5 @@
 import { getFbsTeams, getRankings } from 'cfbd';
-import type { Team } from 'cfbd';
+import type { Team, GetRankingsResponse } from 'cfbd';
 import { unwrap } from '../lib/cfbd-client';
 
 /** Team with optional rank from polls (merged type) */
@@ -16,8 +16,8 @@ export class FbsRepo {
   /**
    * Get rankings for a year (poll weeks). Use latest week for current rank.
    */
-  async getRankings(year: number) {
-    return unwrap(getRankings({ query: { year } }));
+  async getRankings(year: number): Promise<GetRankingsResponse> {
+    return unwrap<GetRankingsResponse>(getRankings({ query: { year } }));
   }
 
   /**

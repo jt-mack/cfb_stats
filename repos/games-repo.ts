@@ -5,7 +5,7 @@ import {
   getGamePlayerStats,
   getAdvancedBoxScore,
 } from 'cfbd';
-import type { Game, PregameWinProbability, GameTeamStats, GamePlayerStats, AdvancedBoxScore } from 'cfbd';
+import type { Game, PregameWinProbability, GameTeamStats, GamePlayerStats, AdvancedBoxScore, GetGamesResponse, GetPregameWinProbabilitiesResponse } from 'cfbd';
 import { unwrap } from '../lib/cfbd-client';
 
 /** Game with optional pregame odds (merged type) */
@@ -23,15 +23,15 @@ export class GamesRepo {
   /**
    * Get schedule (games) for a team and year.
    */
-  async getSchedule(team: string, year: number) {
-    return unwrap(getGames({ query: { team, year } }));
+  async getSchedule(team: string, year: number): Promise<GetGamesResponse> {
+    return unwrap<GetGamesResponse>(getGames({ query: { team, year } }));
   }
 
   /**
    * Get pregame win probabilities for a team and year (for odds).
    */
-  async getPregameWinProbabilities(team: string, year: number) {
-    return unwrap(getPregameWinProbabilities({ query: { team, year } }));
+  async getPregameWinProbabilities(team: string, year: number): Promise<GetPregameWinProbabilitiesResponse> {
+    return unwrap<GetPregameWinProbabilitiesResponse>(getPregameWinProbabilities({ query: { team, year } }));
   }
 
   /**
@@ -52,8 +52,8 @@ export class GamesRepo {
   /**
    * Get a single game by id.
    */
-  async getGameById(gameId: number) {
-    const games = await unwrap(getGames({ query: { id: gameId } }));
+  async getGameById(gameId: number): Promise<Game | null> {
+    const games = await unwrap<GetGamesResponse>(getGames({ query: { id: gameId } }));
     return games?.[0] ?? null;
   }
 
