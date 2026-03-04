@@ -15,7 +15,7 @@ const TeamCard = (props) => {
                 <Stack direction={"horizontal"} gap={3}>
                     <img className="card-image" src={props.logo} alt={props.title}/>
 
-                    <h5 className={"me-auto text-center"}>{props.title} ({props.record?.summary ?? "0-0"})</h5>
+                    <h5 className={"me-auto text-center"}>{props.title} ({typeof props.record === 'string' ? props.record : props.record?.summary ?? "0-0"})</h5>
 
                     <Dropdown>
                         <Dropdown.Toggle variant={"outline-secondary"} style={{...props.customStyle}}>
@@ -23,7 +23,7 @@ const TeamCard = (props) => {
                         </Dropdown.Toggle>
 
                         <Dropdown.Menu>
-                            {links.map((link, index) =>
+                            {(links || []).map((link, index) =>
                                 <Dropdown.Item href={link.href} key={index}
                                                target={"_blank"}>{link.text}</Dropdown.Item>
                             )}

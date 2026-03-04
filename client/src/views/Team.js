@@ -10,6 +10,9 @@ import BarChart from '../components/charts/BarChart';
 import StandingsTable from "../components/tables/standingsTable";
 import Schedule from "../components/tables/schedule";
 import Roster from './partials/Roster';
+import { getTeamInfo } from '../repos/teamsRepo';
+import { getStandings } from '../repos/conferencesRepo';
+import { getSchedule } from '../repos/gamesRepo';
 
 const getFavorites = (team_id) => {
     const favorites = JSON.parse(localStorage.getItem("favorites"));
@@ -49,72 +52,47 @@ function Team() {
 
     const [favorite, setFavorite] = useState(getFavorites(team_id));
 
-    const getTeamInfo = async (team_id, season) => {
+    const season = globalState.season ? Number(globalState.season) : undefined;
+
+    const loadTeamInfo = async (team_id) => {
         setLoading(true);
+        const team = await getTeamInfo(team_id, season);
 
-        const response = await fetch(`/api/cfb/team/${team_id}/information?season=${globalState.season}`);
-        const team = await response.json();
-        if (response.status !== 200) {
-            throw Error(team)
+        const conferenceAbbr = team?.conference;
+        if (conferenceAbbr) {
+            const standingsData = await loadStandings(conferenceAbbr);
+            if (standingsData) setStandings(standingsData);
         }
 
-
-
-        const {standings} = await getStandings(team.groups.id);
-
-        if (standings) {
-            setStandings(standings);
-        }
-
-        const teamName = team?.nickname ?? team?.shortDisplayName;
-
+        const teamName = team?.school;
+        let scheduleList = [];
         if (teamName) {
-            const schedule = await getSchedule(teamName);
-            if (schedule) {
-                setSchedule(schedule);
-                console.log({schedule});
-            }
+            scheduleList = await getSchedule(teamName, season);
+            if (scheduleList && scheduleList.length) setSchedule(scheduleList);
         }
 
-        let {nextEvent} = team;
-
-        if (nextEvent) {
-            const matchingGameFromSchedule = schedule.find(({id}) => id == nextEvent[0]?.id);
-            console.log({matchingGameFromSchedule, nextEvent});
-            if(matchingGameFromSchedule) {
-                nextEvent[0]['extraData']={...matchingGameFromSchedule};
-            }
-            setNextMatchup(nextEvent);
+        const now = new Date();
+        const nextGame = Array.isArray(scheduleList)
+            ? scheduleList.find((g) => !g.completed && new Date(g.startDate) >= now)
+            : null;
+        if (nextGame) {
+            setNextMatchup([{ ...nextGame, extraData: nextGame }]);
         }
 
-        const {color, alternateColor} = team;
-        handleStyleSet({color: "#" + color, backgroundColor: "#" + alternateColor}, team.id);
+        const color = team?.color ?? '000000';
+        const alternateColor = team?.alternateColor ?? 'ffffff';
+        handleStyleSet({ color: '#' + color, backgroundColor: '#' + alternateColor }, team.id);
 
         return team;
+    };
 
-    }
-
-    const getSchedule = async (team_name) => {
-        const response = await fetch(`/api/cfb/v2/schedule/${team_name}?season=${globalState.season}`);
-        const schedule = await response.json();
-        if (response.status !== 200) {
-            throw Error(standings)
-        }
-
-        return schedule;
-    }
-
-    const getStandings = async (conference_id) => {
-        const matchingConference = globalState.conferences?.find(({id}) => id == conference_id) ?? {};
-        setConference((prevState) => ({...matchingConference}));
-        const response = await fetch(`/api/cfb/conferences/${conference_id}/standings?season=${globalState.season}`);
-        const standings = await response.json();
-        if (response.status !== 200) {
-            throw Error(standings)
-        }
-
-        return standings;
-    }
+    const loadStandings = async (conference_id) => {
+        const matchingConference = globalState.conferences?.find(
+            (c) => c.abbreviation === conference_id || c.shortName === conference_id || c.id == conference_id
+        ) ?? {};
+        setConference((prev) => ({ ...matchingConference }));
+        return getStandings(conference_id, season);
+    };
 
     const handleStyleSet = (style, teamId) => {
         localStorage.setItem(`team_style_${teamId}`, JSON.stringify(style));
@@ -128,13 +106,12 @@ function Team() {
 
 
     useEffect(() => {
-
-        getTeamInfo(team_id)
+        loadTeamInfo(team_id)
             .then(handleTeamSet)
-            .catch(err => {
-                console.error(err)
+            .catch((err) => {
+                console.error(err);
                 setLoading(false);
-            })
+            });
     }, [globalState.season]);
 
 
@@ -165,45 +142,45 @@ function Team() {
     }
 
 
-    const createTeamSummary = function (team) {
-
-
-        let {id, abbreviation, displayName, logos, nextEvent, record, standingSummary, rank} = team;
-
-        let short_date;
-        let short_name;
-        if (nextEvent && nextEvent[0]) {
-            short_date = nextEvent[0]?.date;
-            short_name = nextEvent[0]?.name;
-            if (short_date) {
-                short_date = new Date(nextEvent[0].date).toLocaleDateString('en-US')
-            }
+    const createTeamSummary = function (team, nextGameItem) {
+        const title = team.mascot ? `${team.school} ${team.mascot}` : team.school;
+        let nextGameStr = '—';
+        if (nextGameItem?.startDate) {
+            const d = new Date(nextGameItem.startDate).toLocaleDateString('en-US');
+            const name = nextGameItem.awayTeam && nextGameItem.homeTeam
+                ? `${nextGameItem.awayTeam} @ ${nextGameItem.homeTeam}`
+                : 'TBD';
+            nextGameStr = `${name} on ${d}`;
         }
-
-        console.log({standingSummary});
+        const recordStr = standings
+            ? (() => {
+                const r = standings.find((rec) => rec.teamId === team.id || rec.team === team.school);
+                return r?.total ? `${r.total.wins}-${r.total.losses}` : '0-0';
+            })()
+            : '0-0';
         return {
-            id,
-            abbreviation,
-            title: displayName,
+            id: team.id,
+            abbreviation: team.abbreviation,
+            title,
             conferenceLogo: conference?.logo,
-            logo: logos[0]?.href,
-            "Next Game": `${short_name} on ${short_date}`,
-            record: record?.items?.[0] || "0-0",
-            rank,
-            standing: standingSummary
-        }
+            logo: team.logos?.[0] ?? '',
+            "Next Game": nextGameStr,
+            record: recordStr,
+            rank: team.rank,
+            standing: null
+        };
     }
 
-    const createStandingsProps = (standings) => {
-        return standings?.entries?.map(({team, stats}) => ({
-            name: team.displayName,
-            id: team.id,
-            logo: team.logos[0]?.href,
-            rank: team.rank,
-            record: stats?.find(({name}) => name === "overall")?.displayValue ?? "Unknown",
-            conferenceRecord: stats?.find(({abbreviation}) => abbreviation === "CONF")?.displayValue ?? "Unknown",
-        }))
-    }
+    const createStandingsProps = (records) => {
+        if (!Array.isArray(records)) return [];
+        return records.map((rec) => ({
+            name: rec.team,
+            id: rec.teamId,
+            logo: '',
+            record: rec.total ? `${rec.total.wins}-${rec.total.losses}` : '—',
+            conferenceRecord: rec.conferenceGames ? `${rec.conferenceGames.wins}-${rec.conferenceGames.losses}` : '—'
+        }));
+    };
 
     const createDataSetsFromTeamRecordStats = (stats, teamInfo) => {
         const {color, alternateColor, abbreviation} = teamInfo;
@@ -225,8 +202,9 @@ function Team() {
         }
     }
 
-    const {abbreviation, links} = team;
-    const {color, alternateColor} = style;
+    const { abbreviation } = team;
+    const { color, alternateColor } = style;
+    const nextGameForSummary = Array.isArray(nextMatchup) && nextMatchup[0] ? nextMatchup[0] : null;
 
 
     return (<>
@@ -240,10 +218,10 @@ function Team() {
                     : <>
                         <Col xs={12} sm={12}>
 
-                                    {team && team["displayName"] && <Row>
+                                    {team && team.school && <Row>
 
-                                            <TeamCard customStyle={style} {...createTeamSummary(team)} favorite={favorite}
-                                                      links={links}
+                                            <TeamCard customStyle={style} {...createTeamSummary(team, nextGameForSummary)} favorite={favorite}
+                                                      links={team.links ?? []}
                                                       makeFavorite={makeFavorite}>
                                                 <Tabs
                                                     id="team-tabs"
@@ -269,8 +247,8 @@ function Team() {
                                                             <p>This team is coming up on a bye week. Check back next week.</p>}
                                                         </>
                                                     </Tab>
-                                                    <Tab eventKey="roster" title="Roster">
-                                                        <Roster id={team.id} slug={team.name} />
+                                                        <Tab eventKey="roster" title="Roster">
+                                                        <Roster id={team.id} slug={team.school} season={globalState.season} />
                                                     </Tab>
                                                 </Tabs>
 

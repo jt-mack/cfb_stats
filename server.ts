@@ -1,42 +1,22 @@
-
-import express, {Request,Response} from 'express';
+import express from 'express';
 import dotenv from 'dotenv';
-import path from 'path';
+import './lib/cfbd-client'; // ensure CFBD client is configured with API key
+import cfbRoutes from './routes';
+
 const port = process.env.PORT || 5000;
-
-
-
-
 const app = express();
 
-
 dotenv.config();
-
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.use(express.static(path.join(__dirname, 'client/build')));
+// CFB API: single base path; all sub-routes are mounted from routes/index
+app.use('/api/cfb', cfbRoutes);
 
+// Frontend is served by Next.js: dev = "npm run client" (next dev), prod = "next start" in client-next.
+// API is the only responsibility of this server.
 
-
-const collegeFootball = require("./routes/cfb-routes");
-
-import cfbdRouter from './routes/cfbd-routes'
-
-app.use('/api/cfb', collegeFootball);
-app.use('/api/cfb/v2',cfbdRouter);
-
-
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "client/build")));
-
-  app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-  });
-}
-
-// This displays message that the server running and listening to specified port
 app.listen(port, () => console.log(`Listening on port ${port}`));
 
 

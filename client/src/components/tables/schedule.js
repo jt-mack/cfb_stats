@@ -36,8 +36,8 @@ const spreadDisplay = (game) =>  <div>
 const standingsTable = (props) => <>
     <Row className={"g-3"}>
         {props.schedule?.map((game, index) => <Col key={index} xs={12} sm={6} md={6} lg={6} xl={4}>
-            <Card border={variantColor(game, props?.team?.nickname)}
-                text={textColor(game, props?.team?.nickname)}>
+            <Card border={variantColor(game, props?.team?.school)}
+                text={textColor(game, props?.team?.school)}>
                 <Card.Header
                     className={'d-flex justify-content-between'}>
                     <div className={'my-auto d-flex gap-1 align-items-center'}><span>Week {game.week} </span> {game?.conferenceGame &&
@@ -87,7 +87,7 @@ const standingsTable = (props) => <>
                                 <h1 className={'fw-bold ' + 'text-success'}>W</h1> :
                                 <h1 className={'fw-bold ' + 'text-danger'}>L</h1>)}
                             {!game?.completed && game?.odds?.homeWinProbability && <div className={'d-flex justify-content-center gap-2 text-center align-items-center'}>
-                                <WinPercentage logoUrl={props?.team?.logos?.[0]?.href ?? ''} percentage={((isHomeTeam(game, props.team?.nickname) ? (game?.odds?.homeWinProbability ?? 1) : (1 - game?.odds?.homeWinProbability ?? 1)) * 100).toFixed(2)}
+                                <WinPercentage logoUrl={props?.team?.logos?.[0] ?? ''} percentage={((isHomeTeam(game, props.team?.nickname) ? (game?.odds?.homeWinProbability ?? 1) : (1 - game?.odds?.homeWinProbability ?? 1)) * 100).toFixed(2)}
 
                                     small={true}
                                     color={props.style.color} />
