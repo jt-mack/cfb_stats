@@ -82,7 +82,7 @@ export function Coach({ teamId, teamSchool, season }: CoachProps) {
     setLoading(true);
     setError(null);
     getCoaches(teamId, seasonNum)
-      .then((data) => setCoaches(Array.isArray(data) ? data.map((c) => normalizeCoach(c as Record<string, unknown>)) : []))
+      .then((data) => setCoaches(Array.isArray(data) ? data.map((c) => normalizeCoach(c as unknown as Record<string, unknown>)) : []))
       .catch((e) => {
         setError(e instanceof Error ? e.message : "Failed to load coach");
         setCoaches([]);
