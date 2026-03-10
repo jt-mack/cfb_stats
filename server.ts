@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import './lib/cfbd-client'; // ensure CFBD client is configured with API key
 import cfbRoutes from './routes';
 
-const port = process.env.PORT || 5000;
+const port = process.env.SERVER_PORT || 5000;
 const app = express();
 
 dotenv.config();
