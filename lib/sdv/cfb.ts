@@ -4,8 +4,9 @@
  * @see https://github.com/sportsdataverse/sportsdataverse-js/blob/main/src/generated/espn/cfb.ts
  * @see https://js.sportsdataverse.org/docs/reference/cfb
  */
-import { getCfb, sdvRequest, type SdvRequestOptions } from './client';
+import { getCfb, getDefaultSeason, sdvRequest, type SdvRequestOptions } from './client';
 import { FBS_GROUP } from './constants';
+import { normalizeRankingsPayload } from './rankings';
 import type {
   SdvCfbPicks,
   SdvCfbSummary,
@@ -251,12 +252,30 @@ export async function fetchSeasonWeeks(
   return weeks.sort((a, b) => a.week - b.week);
 }
 
-export function fetchParsedRankings(options?: SdvRequestOptions): Promise<Record<string, unknown>> {
+export function fetchParsedRankings(
+  year?: number,
+  options?: SdvRequestOptions
+): Promise<Record<string, unknown>> {
+  const defaultSeason = getDefaultSeason();
+  const season = year ?? defaultSeason;
+  const useLivePolls = season >= defaultSeason;
+
   return sdvRequest(async () => {
     const cfb = await getCfb();
-    return (await cfb.espnCfbRankings({})) as Record<string, unknown>;
+    if (useLivePolls) {
+      return (await cfb.espnCfbRankings({})) as Record<string, unknown>;
+    }
+
+    // Historical seasons: CDN rankings accept year (site rankings endpoint does not).
+    // Legacy SDV typings mark week required; runtime treats it as optional.
+    const getRankings = cfb.getRankings as (params: {
+      year?: number;
+      week?: number;
+    }) => Promise<unknown>;
+    const raw = (await getRankings({ year: season })) as Record<string, unknown>;
+    return normalizeRankingsPayload(raw);
   }, {
-    cacheKey: options?.cacheKey ?? 'espnRankings:current',
+    cacheKey: options?.cacheKey ?? `espnRankings:${season}`,
     cacheTtlMs: options?.cacheTtlMs ?? 15 * 60 * 1000,
     timeoutMs: options?.timeoutMs,
   });

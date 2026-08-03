@@ -55,7 +55,7 @@ router.get('/games/:game_id/drives', async (req: Request, res: Response) => {
   if (Number.isNaN(gameId)) return res.status(400).json({ error: 'Invalid game id' });
 
   try {
-    const data = await deepStatsRepo.getDrivesForGame(0, 0, gameId);
+    const data = await deepStatsRepo.getDrivesForGame(gameId);
     res.json(data);
   } catch (error) {
     console.error(error);
@@ -68,7 +68,7 @@ router.get('/games/:game_id/plays', async (req: Request, res: Response) => {
   if (Number.isNaN(gameId)) return res.status(400).json({ error: 'Invalid game id' });
 
   try {
-    const data = await deepStatsRepo.getPlaysForGame(0, 0, gameId);
+    const data = await deepStatsRepo.getPlaysForGame(gameId);
     res.json(data);
   } catch (error) {
     console.error(error);
@@ -82,13 +82,12 @@ router.get('/team/:team_name/recruiting', async (req: Request, res: Response) =>
   if (season == null) return res.status(400).json({ error: 'Invalid season' });
 
   try {
-    const [recruiting, returning, talent] = await Promise.all([
+    const [recruiting, talent] = await Promise.all([
       deepStatsRepo.getRecruitingRankings(season, teamName),
-      deepStatsRepo.getReturningProduction(season, teamName),
       deepStatsRepo.getTalent(season),
     ]);
     const teamTalent = (talent ?? []).find((t) => t && t.team === teamName) ?? null;
-    res.json({ recruiting, returning, talent: teamTalent });
+    res.json({ recruiting, talent: teamTalent });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to fetch recruiting' });
@@ -100,7 +99,11 @@ router.get('/info/usage', async (_req: Request, res: Response) => {
     source: 'sportsdataverse',
     provider: 'ESPN (unofficial)',
     monthlyLimit: null,
-    message: 'No API key or monthly quota — data served from ESPN public endpoints via SportsDataverse.',
+    message:
+      'No API key or monthly quota — data served from ESPN public endpoints via SportsDataverse. ' +
+      'No CollegeFootballData (CFBD). Power-index efficiencies are ESPN efficiencies, not CFBD PPA. ' +
+      'Recruiting/talent may fall back to ESPN FPI with an explicit source field. ' +
+      'Game advanced box scores are thin ESPN summary assemblies only.',
   });
 });
 

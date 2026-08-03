@@ -1,9 +1,10 @@
 import type { Conference } from "@/lib/types";
 
-const MAIN_CONFERENCE_MAX_ID = 10;
+/** Power conferences for season homepage quick-links only (ACC, Big 12, Big Ten, SEC, Pac-12). */
+const POWER_CONFERENCE_IDS = new Set([1, 4, 5, 8, 9]);
 
 export function filterMainConferences(conferences: Conference[]): Conference[] {
   return conferences.filter(
-    (c) => c.classification === "fbs" && c.id < MAIN_CONFERENCE_MAX_ID
+    (c) => c.classification === "fbs" && POWER_CONFERENCE_IDS.has(c.id)
   );
 }

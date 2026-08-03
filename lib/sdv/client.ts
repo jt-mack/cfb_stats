@@ -35,6 +35,7 @@ type CacheEntry = { expiresAt: number; value: unknown };
 
 const MAX_CACHE_ENTRIES = 500;
 
+/** In-memory cache for raw ESPN/SDV payloads (keyed by sdvRequest cacheKey). Assembled HTTP responses use lib/cache.ts routeCache. */
 const responseCache = new Map<string, CacheEntry>();
 
 function pruneResponseCache(): void {

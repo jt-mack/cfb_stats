@@ -15,6 +15,7 @@ import type { Game } from './types';
 
 const REGULAR_WEEKS = 15;
 const POSTSEASON_WEEKS = 4;
+const SCOREBOARD_FALLBACK_CHUNK = 4;
 
 function teamInRow(row: SdvParsedScoreboardRow, teamId: number, school: string): boolean {
   const homeId = Number(row.home_id);
@@ -40,13 +41,25 @@ export async function buildTeamScheduleFromScoreboard(
     ...Array.from({ length: POSTSEASON_WEEKS }, (_, i) => ({ week: i + 1, seasontype: POSTSEASON_SEASON_TYPE })),
   ];
 
-  for (const { week, seasontype } of weekPlans) {
-    try {
-      const rows = await fetchParsedScoreboard(
-        { season: year, week, seasontype, groups: FBS_GROUP, limit: 300 },
-        { cacheKey: `weekSb:${year}:${seasontype}:${week}`, cacheTtlMs: 15 * 60 * 1000 }
-      );
+  for (let i = 0; i < weekPlans.length; i += SCOREBOARD_FALLBACK_CHUNK) {
+    const chunk = weekPlans.slice(i, i + SCOREBOARD_FALLBACK_CHUNK);
+    const chunkRows = await Promise.all(
+      chunk.map(async ({ week, seasontype }) => {
+        try {
+          return {
+            week,
+            rows: await fetchParsedScoreboard(
+              { season: year, week, seasontype, groups: FBS_GROUP, limit: 300 },
+              { cacheKey: `weekSb:${year}:${seasontype}:${week}`, cacheTtlMs: 15 * 60 * 1000 }
+            ),
+          };
+        } catch {
+          return { week, rows: [] as SdvParsedScoreboardRow[] };
+        }
+      })
+    );
 
+    for (const { week, rows } of chunkRows) {
       for (const row of rows) {
         if (!teamInRow(row, teamId, school)) continue;
         const gameId = Number(row.game_id);
@@ -54,8 +67,6 @@ export async function buildTeamScheduleFromScoreboard(
         seen.add(gameId);
         games.push(mapParsedScoreboardRow(row, week));
       }
-    } catch {
-      // week not published yet
     }
   }
 
@@ -63,9 +74,10 @@ export async function buildTeamScheduleFromScoreboard(
 }
 
 export async function getTeamSchedule(team: string, year: number): Promise<Game[]> {
-  const teamId = await teamIndex.resolveTeamId(team, year);
-  const school = (await teamIndex.resolveSchoolName(team, year)) ?? team;
-  if (!teamId) return [];
+  const meta = await teamIndex.resolveTeamMeta(team, year);
+  if (!meta) return [];
+
+  const { id: teamId, school } = meta;
 
   try {
     const parsed = await fetchParsedTeamSchedule(
@@ -88,5 +100,6 @@ export async function getTeamSchedule(team: string, year: number): Promise<Game[
     // fall through to scoreboard builder
   }
 
+  console.warn(`Schedule scoreboard fallback for ${school} (${teamId}) ${year}`);
   return buildTeamScheduleFromScoreboard(teamId, school, year);
 }

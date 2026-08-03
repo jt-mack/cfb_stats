@@ -156,11 +156,12 @@ export interface Matchup {
   }[];
 }
 
+/** ESPN power-index efficiencies — not CFBD PPA / success rate. */
 export interface AdvancedSeasonStat {
   team: string;
   season: number;
-  offense: { ppa: number; successRate: number };
-  defense: { ppa: number; successRate: number };
+  offenseEfficiency: number;
+  defenseEfficiency: number;
 }
 
 export interface PlayerStat {

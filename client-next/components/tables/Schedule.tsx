@@ -48,6 +48,18 @@ function teamWon(
   );
 }
 
+/** Midnight kickoffs are ESPN placeholders for an unset time — show TBD. */
+function formatScheduleKickoff(startDate: string): string {
+  const d = new Date(startDate);
+  if (Number.isNaN(d.getTime())) return "TBD";
+
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const isMidnightPlaceholder = d.getHours() === 0 && d.getMinutes() === 0;
+  if (isMidnightPlaceholder) return `${date} TBD`;
+
+  return `${date} ${d.toLocaleTimeString("en-US", { timeStyle: "short" })}`;
+}
+
 type ScheduleProps = {
   schedule: GameWithOdds[];
   conference?: Conference | null;
@@ -143,16 +155,7 @@ function ScheduleCardInner({
                 )}
               </div>
               <div className="text-center text-xs sm:text-sm shrink-0">
-                {game.startDate ? (
-                  <>
-                    {new Date(game.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
-                    {new Date(game.startDate).toLocaleTimeString("en-US", {
-                      timeStyle: "short",
-                    })}
-                  </>
-                ) : (
-                  "TBD"
-                )}
+                {game.startDate ? formatScheduleKickoff(game.startDate) : "TBD"}
               </div>
               <div className="flex items-center gap-1 min-w-0 overflow-hidden">
                 <span className="truncate text-xs sm:text-sm">{game.venue ?? "—"}</span>

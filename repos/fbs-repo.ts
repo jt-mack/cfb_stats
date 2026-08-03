@@ -6,6 +6,7 @@ import {
   getDefaultSeason,
   parsePowerIndexRow,
 } from '../lib/sdv';
+import { parsePollRankMap } from '../lib/sdv/rankings';
 import { teamIndex } from '../lib/team-index';
 import type { Team } from '../lib/types';
 
@@ -24,19 +25,11 @@ export class FbsRepo {
 
   async getRankingsFromPolls(year: number): Promise<Map<number, number>> {
     try {
-      const raw = await fetchParsedRankings({ cacheKey: `espnRankings:${year}`, cacheTtlMs: 15 * 60 * 1000 });
-      const rankings = (raw.rankings as Record<string, unknown>[] | undefined) ?? [];
-      const apPoll = rankings.find((r) => r.type === 'ap' || String(r.name ?? '').includes('AP'));
-      const poll = apPoll ?? rankings[0];
-      const ranks = (poll?.ranks as Record<string, unknown>[] | undefined) ?? [];
-
-      const rankMap = new Map<number, number>();
-      for (const entry of ranks) {
-        const team = entry.team as { id?: string | number } | undefined;
-        const id = Number(team?.id);
-        const rank = Number(entry.current ?? entry.rank);
-        if (id && rank > 0 && rank <= 99) rankMap.set(id, rank);
-      }
+      const raw = await fetchParsedRankings(year, {
+        cacheKey: `espnRankings:${year}`,
+        cacheTtlMs: 15 * 60 * 1000,
+      });
+      const rankMap = parsePollRankMap(raw);
       if (rankMap.size > 0) return rankMap;
     } catch (err) {
       console.warn(`getRankingsFromPolls failed for ${year}:`, err instanceof Error ? err.message : err);

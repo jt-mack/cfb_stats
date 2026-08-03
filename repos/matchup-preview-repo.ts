@@ -135,7 +135,8 @@ export class MatchupPreviewRepo {
             this.pickLeaders(mapLeadersToPlayerStats(leaders, effectiveStatsYear), homeTeam, awayTeam),
             homeTeam,
             awayTeam,
-            effectiveStatsYear
+            effectiveStatsYear,
+            teams
           );
         }
       }
@@ -194,14 +195,14 @@ export class MatchupPreviewRepo {
     stats: PlayerStat[],
     homeTeam: string,
     awayTeam: string,
-    year: number
+    year: number,
+    fbsTeams: Awaited<ReturnType<typeof teamIndex.getAllTeams>>
   ): Promise<PreviewPlayerStat[]> {
     if (stats.length === 0) return [];
 
-    const [homeRoster, awayRoster, fbsTeams] = await Promise.all([
+    const [homeRoster, awayRoster] = await Promise.all([
       this.teamsRepo.getRoster(homeTeam, year).catch(() => []),
       this.teamsRepo.getRoster(awayTeam, year).catch(() => []),
-      teamIndex.getAllTeams(year),
     ]);
 
     const roster = [...homeRoster, ...awayRoster];

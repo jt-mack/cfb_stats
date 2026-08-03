@@ -1,10 +1,10 @@
 import {
   fetchParsedStandings,
-  getDefaultSeason,
+  fetchRawStandings,
   listFbsConferences,
-  MAIN_CONFERENCE_IDS,
-  mapParsedStandingsToRecord,
+  mapStandingsEntryToRecord,
   mapParsedStandingsToTeam,
+  extractStandingsEntries,
   resolveConferenceMeta,
 } from '../lib/sdv';
 import type { Conference, Team, TeamRecords } from '../lib/types';
@@ -15,7 +15,7 @@ export class ConferencesRepo {
   }
 
   async getConferences(): Promise<Conference[]> {
-    return this.getAllFbsConferences().filter((c) => MAIN_CONFERENCE_IDS.has(c.id));
+    return this.getAllFbsConferences();
   }
 
   async resolveConferenceAbbr(conferenceId: string): Promise<string | null> {
@@ -39,11 +39,15 @@ export class ConferencesRepo {
     const conf = resolveConferenceMeta(conferenceAbbr);
     if (!conf) return [];
 
-    const rows = await fetchParsedStandings(year, conf.id, {
-      cacheKey: `confRecordsParsed:${year}:${conf.id}`,
+    // Use raw standings so overall / vs. Conf. come from displayValue ("11-3"),
+    // not SDV parsed numeric values (which drop W-L strings and overwrite wins).
+    const raw = await fetchRawStandings(year, conf.id, {
+      cacheKey: `confRecordsRaw:${year}:${conf.id}`,
       cacheTtlMs: 15 * 60 * 1000,
     });
     const conference = conf.abbreviation ?? conf.shortName ?? conf.name;
-    return rows.map((r) => mapParsedStandingsToRecord(r, year, conference));
+    return extractStandingsEntries(raw).map((entry) =>
+      mapStandingsEntryToRecord(entry, year, conference)
+    );
   }
 }

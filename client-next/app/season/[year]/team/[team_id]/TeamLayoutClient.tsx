@@ -94,9 +94,7 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
   const title = team.mascot ? `${team.school} ${team.mascot}` : team.school;
   const ratingChip = ratings?.fpi?.ranking
     ? `${ratings.fpi.label ?? "ESPN FPI"} #${ratings.fpi.ranking}`
-    : ratings?.sp?.ranking
-      ? `FPI #${ratings.sp.ranking}`
-      : null;
+    : null;
   const atsChip =
     ratings?.ats?.games != null
       ? `${ratings.ats.covers}-${ratings.ats.games - ratings.ats.covers} ATS`

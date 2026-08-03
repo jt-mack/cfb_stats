@@ -23,6 +23,7 @@ import {
   getGamePlays,
 } from "@/lib/repos/extrasRepo";
 import { getGamePreview } from "@/lib/repos/gamesRepo";
+import { shouldUseLiveScoreboard } from "@/lib/scoreboardStripHelpers";
 
 export function useDefaultSeason() {
   return useQuery({
@@ -149,9 +150,10 @@ export function useScoreboardStripGames(
   year: number | undefined,
   phase: string | null | undefined,
   currentWeek: number | null | undefined,
-  enabled = true
+  enabled = true,
+  defaultSeason?: number
 ) {
-  const isLive = phase === "regular" || phase === "postseason";
+  const isLive = shouldUseLiveScoreboard(year, phase, defaultSeason);
   const live = useLiveScoreboard(enabled && isLive);
   const week = useWeekGames(
     year,
@@ -169,18 +171,18 @@ export function useGamePreview(gameId: number | undefined, season: number | unde
   });
 }
 
-export function useGameDrives(gameId: number | undefined, season: number | undefined, week: number | undefined) {
+export function useGameDrives(gameId: number | undefined, enabled = true) {
   return useQuery({
-    queryKey: ["gameDrives", gameId, season, week],
-    queryFn: () => getGameDrives(gameId!, season!, week!),
-    enabled: gameId != null && season != null && week != null,
+    queryKey: ["gameDrives", gameId],
+    queryFn: () => getGameDrives(gameId!),
+    enabled: enabled && gameId != null && !Number.isNaN(gameId),
   });
 }
 
-export function useGamePlays(gameId: number | undefined, season: number | undefined, week: number | undefined) {
+export function useGamePlays(gameId: number | undefined, enabled = true) {
   return useQuery({
-    queryKey: ["gamePlays", gameId, season, week],
-    queryFn: () => getGamePlays(gameId!, season!, week!),
-    enabled: gameId != null && season != null && week != null,
+    queryKey: ["gamePlays", gameId],
+    queryFn: () => getGamePlays(gameId!),
+    enabled: enabled && gameId != null && !Number.isNaN(gameId),
   });
 }

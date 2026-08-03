@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { getGamePreview } from "@/lib/repos";
-import { getGameDrives, getGamePlays } from "@/lib/repos/extrasRepo";
+import { useGameDrives, useGamePlays, useGamePreview } from "@/lib/hooks/queries";
 import { normalizeEspnDrive, normalizeEspnPlay } from "@/lib/format";
 import { formatSeasonDate } from "@/lib/seasonHelpers";
-import type { GamePreview } from "@/lib/types";
 import { ImageCard } from "@/components/cards/ImageCard";
 import { PlayerCard } from "@/components/cards/PlayerCard";
 import { BarChart } from "@/components/charts/BarChart";
@@ -27,75 +25,39 @@ type GamePageClientProps = {
 };
 
 export default function GamePageClient({ year, gameId }: GamePageClientProps) {
-  const [preview, setPreview] = useState<GamePreview | null>(null);
-  const [drives, setDrives] = useState<ReturnType<typeof normalizeEspnDrive>[]>([]);
-  const [plays, setPlays] = useState<ReturnType<typeof normalizeEspnPlay>[]>([]);
   const [showPlays, setShowPlays] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const seasonNum = Number(year);
+  const id = Number(gameId);
+  const validId = !Number.isNaN(id);
+  const validSeason = !Number.isNaN(seasonNum);
 
-  useEffect(() => {
-    const id = Number(gameId);
-    if (Number.isNaN(id)) {
-      setError("Invalid game id");
-      setLoading(false);
-      return;
-    }
+  const {
+    data: preview,
+    isLoading,
+    isError,
+    error,
+  } = useGamePreview(validId ? id : undefined, validSeason ? seasonNum : undefined);
 
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
+  const loadPlayByPlay = Boolean(preview?.completed && preview.game);
+  const { data: drivesRaw = [] } = useGameDrives(validId ? id : undefined, loadPlayByPlay);
+  const { data: playsRaw = [] } = useGamePlays(validId ? id : undefined, loadPlayByPlay);
 
-    getGamePreview(id, Number.isNaN(seasonNum) ? undefined : seasonNum)
-      .then(async (data) => {
-        if (cancelled) return;
-        setPreview(data);
-        if (!data.game) {
-          setError("Game preview unavailable. Data may still be loading from ESPN.");
-          return;
-        }
-        if (data.completed && data.game.season && data.game.week) {
-          const [drivesData, playsData] = await Promise.all([
-            getGameDrives(id, data.game.season, data.game.week).catch(() => []),
-            getGamePlays(id, data.game.season, data.game.week).catch(() => []),
-          ]);
-          if (cancelled) return;
-          setDrives(
-            drivesData.map((drive) =>
-              normalizeEspnDrive(drive, data.game!.homeTeam, data.game!.awayTeam)
-            )
-          );
-          setPlays(playsData.map(normalizeEspnPlay));
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load game");
-          setPreview(null);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+  const drives = useMemo(() => {
+    if (!preview?.game || !drivesRaw.length) return [];
+    return drivesRaw.map((drive) =>
+      normalizeEspnDrive(drive, preview.game!.homeTeam, preview.game!.awayTeam)
+    );
+  }, [drivesRaw, preview?.game]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [gameId, seasonNum]);
+  const plays = useMemo(() => playsRaw.map(normalizeEspnPlay), [playsRaw]);
 
   const seasonStatsChart = useMemo(() => {
     if (!preview?.advancedSeasonStats?.length) return null;
-    const labels = ["Off PPA", "Off Success", "Def PPA", "Def Success"];
+    const labels = ["Off Efficiency", "Def Efficiency"];
     const datasets = preview.advancedSeasonStats.slice(0, 2).map((s) => ({
       label: s.team,
-      data: [
-        s.offense?.ppa ?? 0,
-        s.offense?.successRate ?? 0,
-        s.defense?.ppa ?? 0,
-        s.defense?.successRate ?? 0,
-      ],
+      data: [s.offenseEfficiency ?? 0, s.defenseEfficiency ?? 0],
     }));
     return { labels, datasets };
   }, [preview?.advancedSeasonStats]);
@@ -125,7 +87,11 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
     }));
   }, [preview?.playerSeasonStats]);
 
-  if (loading) {
+  if (!validId) {
+    return <div className="py-8 text-center text-zinc-400">Invalid game id</div>;
+  }
+
+  if (isLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <Skeleton className="h-12 w-12 rounded-full" />
@@ -133,15 +99,19 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
     );
   }
 
-  if (error && !preview?.game) {
+  if (isError && !preview?.game) {
     return (
-      <div className="py-8 text-center text-zinc-400">{error}</div>
+      <div className="py-8 text-center text-zinc-400">
+        {error instanceof Error ? error.message : "Failed to load game"}
+      </div>
     );
   }
 
   if (!preview?.game) {
     return (
-      <div className="py-8 text-center text-zinc-400">Game not found.</div>
+      <div className="py-8 text-center text-zinc-400">
+        Game preview unavailable. Data may still be loading from ESPN.
+      </div>
     );
   }
 

@@ -32,6 +32,7 @@ import type {
   SdvPredictiveMetric,
   SdvSeasonCoachEntry,
   SdvStandingsEntry,
+  SdvStandingsResponse,
   SdvTeamInfoResponse,
   SdvTeamResponse,
 } from './types';
@@ -299,14 +300,48 @@ export function mapParsedStandingsToRecord(
   year: number,
   conference: string
 ): TeamRecords {
+  // SDV's parsed standings store `stat.value`, but overall / vs. Conf. records only
+  // have `displayValue` (e.g. "11-3"). Prefer string W-L fields; never invent losses
+  // from a bare wins count (that mislabels conference wins as overall).
+  const overall =
+    typeof row.overall === 'string' && row.overall.includes('-')
+      ? row.overall
+      : undefined;
+  const vsConf =
+    typeof row.vs_conf === 'string' && row.vs_conf.includes('-')
+      ? row.vs_conf
+      : undefined;
+
   return {
     year,
     teamId: num(row.team_id) ?? 0,
     team: row.team_location ?? row.team_display_name ?? '',
     conference,
-    total: parseRecord(row.overall ?? (row.wins != null ? `${row.wins}-0` : undefined)),
-    conferenceGames: parseRecord(row.vs_conf),
+    total: parseRecord(overall),
+    conferenceGames: parseRecord(vsConf),
   };
+}
+
+/** Flatten ESPN standings entries from a possibly nested children payload. */
+export function extractStandingsEntries(raw: SdvStandingsResponse | null | undefined): SdvStandingsEntry[] {
+  if (!raw) return [];
+  const entries: SdvStandingsEntry[] = [];
+
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+    const n = node as SdvStandingsResponse & { children?: unknown[] };
+    const list = n.standings?.entries;
+    if (Array.isArray(list)) entries.push(...list);
+    for (const child of n.children ?? []) walk(child);
+  };
+
+  if (Array.isArray(raw.children) && raw.children.length) {
+    for (const child of raw.children) walk(child);
+  } else {
+    walk(raw);
+  }
+
+  return entries;
 }
 
 export function mapParsedRosterRows(rows: SdvParsedRosterRow[], school: string, year: number): RosterPlayer[] {
@@ -591,13 +626,11 @@ export function mapPowerIndexToAdvancedStats(
       const school = teamId != null ? teamIds.get(teamId) : null;
       if (!school) return null;
       const eff = parseEfficiencyJson(row.efficiencies);
-      const offEff = eff.offefficiency ?? 0;
-      const defEff = eff.defefficiency ?? 0;
       return {
         team: school,
         season,
-        offense: { ppa: offEff / 100, successRate: offEff / 100 },
-        defense: { ppa: defEff / 100, successRate: defEff / 100 },
+        offenseEfficiency: eff.offefficiency ?? 0,
+        defenseEfficiency: eff.defefficiency ?? 0,
       };
     })
     .filter(Boolean) as AdvancedSeasonStat[];

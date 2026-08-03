@@ -59,8 +59,6 @@ export async function getWeekGames(year: number, week: number) {
 export type TeamRatings = {
   fpi: { ranking: number | null; rating: number; team: string; label?: string; source?: string } | null;
   efficiency: { ranking: number | null; rating: number; team: string; label?: string; source?: string } | null;
-  sp: { ranking: number | null; rating: number; team: string; label?: string } | null;
-  srs: { ranking: number | null; rating: number; team: string; label?: string } | null;
   ats: {
     team: string;
     year: number;
@@ -77,25 +75,17 @@ export async function getTeamRatings(year: number, teamName: string) {
 export type EspnDrive = Record<string, unknown>;
 export type EspnPlay = Record<string, unknown>;
 
-export async function getGameDrives(gameId: number, season: number, week: number) {
-  return get<EspnDrive[]>(`/games/${gameId}/drives`, { season, week });
+export async function getGameDrives(gameId: number) {
+  return get<EspnDrive[]>(`/games/${gameId}/drives`);
 }
 
-export async function getGamePlays(gameId: number, season: number, week: number) {
-  return get<EspnPlay[]>(`/games/${gameId}/plays`, { season, week });
+export async function getGamePlays(gameId: number) {
+  return get<EspnPlay[]>(`/games/${gameId}/plays`);
 }
 
 export async function getTeamRecruiting(teamName: string, season?: number) {
   return get<{
     recruiting: { rank: number; points: number; team: string; source?: string }[];
-    returning: {
-      totalPPA: number | null;
-      percentPPA: number | null;
-      usage: number | null;
-      team: string;
-      label?: string;
-      isEstimate?: boolean;
-    }[];
     talent: { year: number; talent: number; team: string; source?: string } | null;
   }>(
     `/team/${encodeURIComponent(teamName)}/recruiting`,

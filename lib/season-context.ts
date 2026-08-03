@@ -117,6 +117,11 @@ export async function buildSeasonContext(year: number): Promise<SeasonContext> {
     else phase = 'offseason';
   }
 
+  // Historical seasons are complete relative to "now" — never present as live.
+  if (year < defaultSeason && (phase === 'regular' || phase === 'postseason')) {
+    phase = 'offseason';
+  }
+
   try {
     const rankMap = await fbsRepo.getRankingsFromPolls(year);
     if (rankMap.size > 0) {
@@ -132,7 +137,10 @@ export async function buildSeasonContext(year: number): Promise<SeasonContext> {
       const sample = await scoreboardRepo.getWeekGames(year, 1);
       if (sample.some((g) => g.completed)) {
         seasonStarted = true;
-        phase = phase === 'offseason' ? 'regular' : phase;
+        // Do not resurrect historical seasons as "regular" — that drives live UI.
+        if (phase === 'offseason' && year >= defaultSeason) {
+          phase = 'regular';
+        }
         currentWeek = currentWeek ?? 1;
       }
     } catch {

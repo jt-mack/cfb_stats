@@ -143,9 +143,6 @@ export class RatingsRepo {
       fpi: fpi.find((r) => r.team === team) ?? null,
       efficiency: efficiency.find((r) => r.team === team) ?? null,
       ats: ats[0] ?? null,
-      // Legacy keys for gradual migration
-      sp: fpi.find((r) => r.team === team) ?? null,
-      srs: efficiency.find((r) => r.team === team) ?? null,
     };
   }
 }

@@ -54,6 +54,11 @@ export {
 } from './cfb';
 
 export {
+  normalizeRankingsPayload,
+  parsePollRankMap,
+} from './rankings';
+
+export {
   fetchCompositeTeamRankings,
   fetchInstitutionTalent,
   type TeamRecruitingRow,

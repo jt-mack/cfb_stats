@@ -11,7 +11,7 @@ import {
 import { teamIndex } from '../lib/team-index';
 
 export class DeepStatsRepo {
-  async getDrivesForGame(_season: number, _week: number, gameId: number) {
+  async getDrivesForGame(gameId: number) {
     try {
       return await fetchGameDrives(gameId);
     } catch (err) {
@@ -20,7 +20,7 @@ export class DeepStatsRepo {
     }
   }
 
-  async getPlaysForGame(_season: number, _week: number, gameId: number) {
+  async getPlaysForGame(gameId: number) {
     try {
       return await fetchGamePlays(gameId);
     } catch (err) {
@@ -89,22 +89,5 @@ export class DeepStatsRepo {
     }[];
 
     return team ? rankings.filter((r) => r.team === team) : rankings;
-  }
-
-  /** Roster experience estimate — not true returning production. */
-  async getReturningProduction(year: number, team?: string) {
-    if (!team) return [];
-    const roster = await teamIndex.resolveTeamId(team, year);
-    if (!roster) return [];
-
-    return [{
-      team,
-      year,
-      totalPPA: null,
-      percentPPA: null,
-      usage: null,
-      label: 'Returning production data unavailable',
-      isEstimate: true,
-    }];
   }
 }

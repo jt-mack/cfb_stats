@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { SeasonContext } from "@/lib/repos/seasonRepo";
 import { useScoreboardStripGames } from "@/lib/hooks/queries";
+import { scoreboardStripTitle } from "@/lib/scoreboardStripHelpers";
 
 type ScoreboardStripProps = {
   year: string;
@@ -18,8 +19,17 @@ export function ScoreboardStrip({
   const yearNum = Number(year);
   const phase = seasonContext?.phase ?? null;
   const currentWeek = seasonContext?.currentWeek ?? null;
+  const defaultSeason = seasonContext?.defaultSeason;
+  const isCurrentSeason =
+    defaultSeason != null && !Number.isNaN(yearNum) && yearNum === defaultSeason;
 
-  const { data, isLoading } = useScoreboardStripGames(yearNum, phase, currentWeek, enabled);
+  const { data, isLoading } = useScoreboardStripGames(
+    yearNum,
+    phase,
+    currentWeek,
+    enabled,
+    defaultSeason
+  );
   const games = Array.isArray(data) ? data.slice(0, 8) : [];
 
   if (!enabled || isLoading) return null;
@@ -39,7 +49,7 @@ export function ScoreboardStrip({
     <div className="mb-4 space-y-2">
       <div className="flex items-center justify-between px-1">
         <h3 className="text-sm font-medium text-zinc-300">
-          {phase === "preseason" ? "Week 1 Preview" : "This Week"}
+          {scoreboardStripTitle(phase, currentWeek, isCurrentSeason)}
         </h3>
         {currentWeek != null && (
           <Link

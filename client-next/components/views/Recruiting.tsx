@@ -19,7 +19,6 @@ export function Recruiting({ teamSchool, season }: RecruitingProps) {
   }
 
   const recruiting = data.recruiting?.[0];
-  const returning = data.returning?.[0];
   const talent = data.talent;
 
   const recruitingLabel =
@@ -28,7 +27,7 @@ export function Recruiting({ teamSchool, season }: RecruitingProps) {
     talent?.source === "247sports" ? "Team Talent Composite" : "ESPN FPI";
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {recruiting && (
         <Card className="border-zinc-700 bg-zinc-800">
           <CardContent className="p-4">
@@ -49,23 +48,6 @@ export function Recruiting({ teamSchool, season }: RecruitingProps) {
             <p className="text-xs text-zinc-500 mt-1">
               {talent.year} {talent.source === "247sports" ? "247Sports talent" : "ESPN FPI"}
             </p>
-          </CardContent>
-        </Card>
-      )}
-      {returning && !returning.isEstimate && returning.percentPPA != null && (
-        <Card className="border-zinc-700 bg-zinc-800">
-          <CardContent className="p-4">
-            <h4 className="text-sm text-zinc-400">Returning Production</h4>
-            <p className="text-2xl font-semibold text-zinc-100">
-              {(returning.percentPPA * 100).toFixed(0)}%
-            </p>
-          </CardContent>
-        </Card>
-      )}
-      {returning?.isEstimate && (
-        <Card className="border-zinc-700 bg-zinc-800 md:col-span-2">
-          <CardContent className="p-4">
-            <p className="text-sm text-zinc-400">{returning.label ?? "Returning production unavailable."}</p>
           </CardContent>
         </Card>
       )}

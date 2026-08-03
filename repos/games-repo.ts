@@ -23,7 +23,10 @@ export class GamesRepo {
     if (!teamId) return games.map((g) => ({ ...g, odds: undefined }));
 
     try {
-      const raw = await fetchTeamScheduleRaw({ teamId, season: year });
+      const raw = await fetchTeamScheduleRaw(
+        { teamId, season: year },
+        { cacheKey: `scheduleRaw:${team}:${year}`, cacheTtlMs: 15 * 60 * 1000 }
+      );
       return extractOddsFromRawSchedule(raw.events ?? [], games);
     } catch (err) {
       console.warn(`Schedule odds unavailable for ${team} ${year}:`, err instanceof Error ? err.message : err);

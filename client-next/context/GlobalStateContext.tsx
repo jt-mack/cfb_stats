@@ -57,8 +57,3 @@ export function useGlobalState() {
   if (!ctx) throw new Error("useGlobalState must be used within GlobalStateProvider");
   return ctx;
 }
-
-/** @deprecated Use useConferences() from lib/hooks/queries instead */
-export function useGlobalConferences() {
-  return { conferences: [] as never[] };
-}

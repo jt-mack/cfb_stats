@@ -28,6 +28,7 @@ export class TeamIndex {
   private bySchool = new Map<string, Team>();
   private byAbbr = new Map<string, Team>();
   private loadedYear: number | null = null;
+  private sortedTeams: Team[] | null = null;
   private loadInflight = new Map<number, Promise<void>>();
 
   private indexTeam(team: Team): void {
@@ -60,6 +61,7 @@ export class TeamIndex {
       this.byId.clear();
       this.bySchool.clear();
       this.byAbbr.clear();
+      this.sortedTeams = null;
 
       await this.loadYear(year);
 
@@ -69,6 +71,7 @@ export class TeamIndex {
       }
 
       this.loadedYear = year;
+      this.sortedTeams = [...this.byId.values()].sort((a, b) => a.school.localeCompare(b.school));
     })().finally(() => {
       this.loadInflight.delete(year);
     });
@@ -79,7 +82,7 @@ export class TeamIndex {
 
   async getAllTeams(year: number): Promise<Team[]> {
     await this.load(year);
-    return [...this.byId.values()].sort((a, b) => a.school.localeCompare(b.school));
+    return this.sortedTeams ?? [...this.byId.values()].sort((a, b) => a.school.localeCompare(b.school));
   }
 
   async getFbsTeamIds(year: number): Promise<Set<number>> {
@@ -105,6 +108,15 @@ export class TeamIndex {
       ) ??
       null
     );
+  }
+
+  async resolveTeamMeta(
+    teamIdOrSchool: string,
+    year: number
+  ): Promise<{ id: number; school: string } | null> {
+    const team = await this.resolveTeam(teamIdOrSchool, year);
+    if (!team) return null;
+    return { id: team.id, school: team.school };
   }
 
   async resolveTeamId(teamIdOrSchool: string, year: number): Promise<number | null> {

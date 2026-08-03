@@ -175,8 +175,8 @@ export interface GamePreview {
   advancedSeasonStats: {
     team: string;
     season: number;
-    offense: { ppa: number; successRate: number };
-    defense: { ppa: number; successRate: number };
+    offenseEfficiency: number;
+    defenseEfficiency: number;
   }[];
   playerSeasonStats: {
     playerId: string;
