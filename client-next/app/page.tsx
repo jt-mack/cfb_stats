@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
+import { getDefaultSeason } from "@/lib/seasonHelpers";
 
 export default function HomePage() {
-  const currentYear = new Date().getFullYear();
-  redirect(`/season/${currentYear}`);
+  redirect(`/season/${getDefaultSeason()}`);
 }

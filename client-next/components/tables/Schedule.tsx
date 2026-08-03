@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -15,6 +16,7 @@ import { WinPercentage } from "@/components/odds/WinPercentage";
 import type { GameWithOdds } from "@/lib/types";
 import type { Conference } from "@/lib/types";
 import type { Team } from "@/lib/types";
+import type { GameEnrichment } from "@/lib/repos/extrasRepo";
 
 function isHomeTeam(game: GameWithOdds, teamSchool: string | undefined) {
   return game.homeTeam === teamSchool;
@@ -51,6 +53,8 @@ type ScheduleProps = {
   conference?: Conference | null;
   team: Team;
   style?: { color?: string; backgroundColor?: string };
+  season?: string;
+  enrichmentByGameId?: Map<number, GameEnrichment>;
 };
 
 export function Schedule({
@@ -58,6 +62,8 @@ export function Schedule({
   conference,
   team,
   style = {},
+  season,
+  enrichmentByGameId,
 }: ScheduleProps) {
   const teamSchool = team?.school;
 
@@ -72,8 +78,56 @@ export function Schedule({
         return (
           <Card
             key={game.id ?? index}
-            className={`overflow-hidden border ${borderColor} bg-zinc-800 min-w-0`}
+            className={`overflow-hidden border ${borderColor} bg-zinc-800 min-w-0 ${season && game.id ? "cursor-pointer hover:bg-zinc-700 transition-colors" : ""}`}
           >
+            {season && game.id ? (
+              <Link href={`/season/${season}/game/${game.id}`} className="block">
+                <ScheduleCardInner
+                  game={game}
+                  conference={conference}
+                  teamSchool={teamSchool}
+                  teamLogo={team?.logos?.[0] ?? ""}
+                  style={style}
+                  enrichment={game.id ? enrichmentByGameId?.get(game.id) : undefined}
+                />
+              </Link>
+            ) : (
+              <ScheduleCardInner
+                game={game}
+                conference={conference}
+                teamSchool={teamSchool}
+                teamLogo={team?.logos?.[0] ?? ""}
+                style={style}
+                enrichment={game.id ? enrichmentByGameId?.get(game.id) : undefined}
+              />
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScheduleCardInner({
+  game,
+  conference,
+  teamSchool,
+  teamLogo,
+  style,
+  enrichment,
+}: {
+  game: GameWithOdds;
+  conference?: Conference | null;
+  teamSchool: string | undefined;
+  teamLogo: string;
+  style: { color?: string; backgroundColor?: string };
+  enrichment?: GameEnrichment;
+}) {
+  const odds = game.odds ?? enrichment?.odds;
+  const spread = odds?.spread ?? enrichment?.lines?.lines?.[0]?.spread;
+
+  return (
+    <>
             <CardHeader className="py-2 px-2 sm:px-3 flex flex-row justify-between items-center flex-wrap gap-1">
               <div className="flex items-center gap-1 min-w-0">
                 <span className="text-xs sm:text-sm whitespace-nowrap">Week {game.week}</span>
@@ -164,30 +218,44 @@ export function Schedule({
                     {teamWon(game, teamSchool) ? "W" : "L"}
                   </span>
                 )}
-                {!game.completed && game.odds?.homeWinProbability != null && (
+                {!game.completed && odds?.homeWinProbability != null && (
                   <WinPercentage
-                    logoUrl={team?.logos?.[0] ?? ""}
+                    logoUrl={teamLogo}
                     percentage={
                       (
                         (isHomeTeam(game, teamSchool)
-                          ? (game.odds.homeWinProbability ?? 0)
-                          : 1 - (game.odds.homeWinProbability ?? 0)) * 100
+                          ? (odds.homeWinProbability ?? 0)
+                          : 1 - (odds.homeWinProbability ?? 0)) * 100
                     ).toFixed(2)
                     }
                     small
                     color={style?.color ?? "#71717a"}
                   />
                 )}
-                {game.odds?.spread != null && (
+                {spread != null && (
                   <span className="text-sm text-zinc-400">
-                    {game.odds.spread > 0 ? `+${game.odds.spread}` : game.odds.spread}
+                    {spread > 0 ? `+${spread}` : spread}
+                  </span>
+                )}
+                {enrichment?.lines?.lines?.[0]?.overUnder != null && (
+                  <span className="text-xs text-zinc-500">
+                    O/U {enrichment.lines.lines[0].overUnder}
                   </span>
                 )}
               </div>
+              {(enrichment?.media?.length || enrichment?.weather) && (
+                <div className="mt-1 flex flex-wrap justify-center gap-2 text-xs text-zinc-500">
+                  {enrichment.media?.slice(0, 1).map((m, i) => (
+                    <span key={i}>{m.outlet}</span>
+                  ))}
+                  {enrichment.weather &&
+                    !enrichment.weather.gameIndoors &&
+                    enrichment.weather.temperature != null && (
+                      <span>{enrichment.weather.temperature}°F</span>
+                    )}
+                </div>
+              )}
             </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+    </>
   );
 }

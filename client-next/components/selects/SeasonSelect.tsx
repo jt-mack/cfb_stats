@@ -7,9 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getDefaultSeason } from "@/lib/seasonHelpers";
 
-const currentYear = new Date().getFullYear();
-const years = Array.from({ length: 11 }, (_, i) => currentYear - i);
+const defaultYear = getDefaultSeason();
+const years = Array.from({ length: 11 }, (_, i) => defaultYear - i);
 
 type SeasonSelectProps = {
   value: string;

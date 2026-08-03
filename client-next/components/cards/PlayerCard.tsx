@@ -2,7 +2,7 @@
 
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 
-/** Supports both roster player shape and stat-leader shape from NextMatchup */
+/** Supports both roster player shape and stat-leader shape from game previews */
 type PlayerCardProps = {
   player: {
     fullName?: string;
@@ -19,8 +19,7 @@ type PlayerCardProps = {
   };
 };
 
-const PLACEHOLDER_PIC =
-  "https://ttwo.dk/wp-content/uploads/2017/08/person-placeholder.jpg";
+const PLACEHOLDER_PIC = "/favicon.ico";
 
 export function PlayerCard({ player, stats }: PlayerCardProps) {
   const displayName =

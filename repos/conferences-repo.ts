@@ -1,27 +1,49 @@
-import { getConferences, getTeams, getRecords } from 'cfbd';
-import type { GetConferencesResponse, GetRecordsResponse } from 'cfbd';
-import { unwrap } from '../lib/cfbd-client';
+import {
+  fetchParsedStandings,
+  getDefaultSeason,
+  listFbsConferences,
+  MAIN_CONFERENCE_IDS,
+  mapParsedStandingsToRecord,
+  mapParsedStandingsToTeam,
+  resolveConferenceMeta,
+} from '../lib/sdv';
+import type { Conference, Team, TeamRecords } from '../lib/types';
 
 export class ConferencesRepo {
-  /**
-   * Get all conferences (CFBD returns FBS conferences).
-   */
-  async getConferences(): Promise<GetConferencesResponse> {
-    return unwrap<GetConferencesResponse>(getConferences({}));
+  private getAllFbsConferences(): Conference[] {
+    return listFbsConferences();
   }
 
-  /**
-   * Get teams in a conference for a given year.
-   * conferenceAbbr: e.g. "SEC", "B1G"
-   */
-  async getTeamsByConference(conferenceAbbr: string, year: number) {
-    return unwrap(getTeams({ query: { conference: conferenceAbbr, year } }));
+  async getConferences(): Promise<Conference[]> {
+    return this.getAllFbsConferences().filter((c) => MAIN_CONFERENCE_IDS.has(c.id));
   }
 
-  /**
-   * Get conference standings/records for a conference and year.
-   */
-  async getConferenceRecords(conferenceAbbr: string, year: number): Promise<GetRecordsResponse> {
-    return unwrap<GetRecordsResponse>(getRecords({ query: { conference: conferenceAbbr, year } }));
+  async resolveConferenceAbbr(conferenceId: string): Promise<string | null> {
+    const meta = resolveConferenceMeta(conferenceId);
+    return meta?.abbreviation ?? meta?.shortName ?? conferenceId;
+  }
+
+  async getTeamsByConference(conferenceAbbr: string, year: number): Promise<Team[]> {
+    const conf = resolveConferenceMeta(conferenceAbbr);
+    if (!conf) return [];
+
+    const rows = await fetchParsedStandings(year, conf.id, {
+      cacheKey: `standingsParsed:${year}:${conf.id}`,
+      cacheTtlMs: 60 * 60 * 1000,
+    });
+    const conference = conf.abbreviation ?? conf.shortName ?? conf.name;
+    return rows.map((r) => mapParsedStandingsToTeam(r, conference));
+  }
+
+  async getConferenceRecords(conferenceAbbr: string, year: number): Promise<TeamRecords[]> {
+    const conf = resolveConferenceMeta(conferenceAbbr);
+    if (!conf) return [];
+
+    const rows = await fetchParsedStandings(year, conf.id, {
+      cacheKey: `confRecordsParsed:${year}:${conf.id}`,
+      cacheTtlMs: 15 * 60 * 1000,
+    });
+    const conference = conf.abbreviation ?? conf.shortName ?? conf.name;
+    return rows.map((r) => mapParsedStandingsToRecord(r, year, conference));
   }
 }

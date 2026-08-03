@@ -1,5 +1,5 @@
 /**
- * Frontend types for CFB API responses (aligned with backend/CFBD shapes).
+ * Frontend types for CFB API responses (aligned with backend/ESPN-mapped shapes).
  */
 
 /** Venue/location from getTeams response. */
@@ -18,7 +18,6 @@ export interface TeamLocation {
   constructionYear?: number;
   grass?: boolean;
   dome?: boolean;
-  [key: string]: unknown;
 }
 
 export interface Team {
@@ -32,17 +31,16 @@ export interface Team {
   color: string | null;
   alternateColor: string | null;
   logos: string[] | null;
-  /** Official Twitter handle (no @). */
   twitter?: string | null;
-  /** Alternate / historical names. */
   alternateNames?: string[] | null;
-  /** Home venue / stadium. */
   location?: TeamLocation | null;
-  [key: string]: unknown;
+  links?: { href: string; text: string }[] | null;
 }
 
 export interface FbsTeamWithRank extends Team {
-  rank?: number;
+  rank?: number | null;
+  rankLabel?: string;
+  rankSource?: "ap" | "coaches" | "cfp" | "fpi" | "prior_ap" | "none";
 }
 
 export interface Conference {
@@ -50,8 +48,8 @@ export interface Conference {
   name: string;
   shortName: string | null;
   abbreviation: string | null;
+  classification?: string | null;
   logo?: string;
-  [key: string]: unknown;
 }
 
 export interface TeamRecord {
@@ -68,7 +66,6 @@ export interface TeamRecords {
   conference: string;
   total: TeamRecord;
   conferenceGames: TeamRecord;
-  [key: string]: unknown;
 }
 
 export interface RosterPlayer {
@@ -81,7 +78,6 @@ export interface RosterPlayer {
   jersey: number | null;
   year: number;
   position: string | null;
-  [key: string]: unknown;
 }
 
 export interface PregameWinProbability {
@@ -90,7 +86,6 @@ export interface PregameWinProbability {
   awayTeam: string;
   spread: number;
   homeWinProbability: number;
-  [key: string]: unknown;
 }
 
 export interface Game {
@@ -109,7 +104,7 @@ export interface Game {
   homeLineScores: number[] | null;
   awayLineScores: number[] | null;
   homePostgameWinProbability?: number | null;
-  [key: string]: unknown;
+  status?: string | null;
 }
 
 export interface GameWithOdds extends Game {
@@ -118,9 +113,99 @@ export interface GameWithOdds extends Game {
 
 export interface GameDetail {
   game: Game | null;
-  teamStats: unknown[] | null;
-  playerStats: unknown[] | null;
-  advancedBoxScore: unknown | null;
+  teamStats: GameTeamStatEntry[] | null;
+  playerStats: GamePlayerStatEntry[] | null;
+  advancedBoxScore: AdvancedBoxScoreData | null;
+}
+
+export interface GameTeamStatEntry {
+  id: number;
+  teams: {
+    teamId: number;
+    team: string;
+    homeAway: string;
+    points: number | null;
+    stats: { category: string; stat: string }[];
+  }[];
+}
+
+export interface GamePlayerStatEntry {
+  id: number;
+  teams: {
+    team: string;
+    categories: {
+      name: string;
+      types: {
+        name: string;
+        athletes: { id: string; name: string; stat: string }[];
+      }[];
+    }[];
+  }[];
+}
+
+export interface AdvancedBoxScoreData {
+  gameInfo?: {
+    homeTeam?: string;
+    awayTeam?: string;
+    homeWinProb?: number;
+    venue?: { fullName?: string };
+  };
+  teams?: Record<string, unknown>;
+}
+
+export interface GamePreview {
+  game: Game | null;
+  completed: boolean;
+  detail: GameDetail | null;
+  matchup: {
+    team1: string;
+    team2: string;
+    team1Wins: number;
+    team2Wins: number;
+    ties: number;
+    games: {
+      season: number;
+      date: string;
+      homeTeam: string;
+      awayTeam: string;
+      homeScore: number | null;
+      awayScore: number | null;
+    }[];
+  } | null;
+  advancedSeasonStats: {
+    team: string;
+    season: number;
+    offense: { ppa: number; successRate: number };
+    defense: { ppa: number; successRate: number };
+  }[];
+  playerSeasonStats: {
+    playerId: string;
+    player: string;
+    team: string;
+    position: string;
+    category: string;
+    statType: string;
+    stat: string;
+    season: number;
+    jersey: number | null;
+    teamLogo: string | null;
+  }[];
+  odds: PregameWinProbability | null;
+  lines: {
+    lines: { spread: number; overUnder: number; provider: string }[];
+  } | null;
+  media: { outlet: string; mediaType: string }[];
+  weather: {
+    gameIndoors: boolean;
+    temperature: number | null;
+    humidity: number | null;
+    windSpeed: number | null;
+    windDirection: number | null;
+    precipitation: number | null;
+    snowfall: number | null;
+    condition?: { description?: string };
+  } | null;
+  statsYear: number;
 }
 
 /** Single season of a coach at a school (from coaches endpoint). */

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useGlobalState } from "@/context/GlobalStateContext";
+import { useFavorites } from "@/lib/hooks/useFavorites";
 import { SeasonSelect } from "@/components/selects/SeasonSelect";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useGlobalState } from "@/context/GlobalStateContext";
+import { getDefaultSeason } from "@/lib/seasonHelpers";
 import { Menu } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 function parseYearFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/season\/(\d+)/);
@@ -23,36 +25,22 @@ export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { globalState, setLastUsedSeason } = useGlobalState();
-  const [favorites, setFavorites] = useState<{ id: number; name: string }[]>([]);
+  const { favorites, hydrated } = useFavorites();
 
   const yearFromPath = useMemo(() => parseYearFromPath(pathname ?? ""), [pathname]);
-  const currentYear = new Date().getFullYear();
-  const season = yearFromPath ?? globalState.lastUsedSeason ?? String(currentYear);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("favorites");
-      if (raw) {
-        const parsed = JSON.parse(raw) as { id: number; name: string }[];
-        if (Array.isArray(parsed)) setFavorites(parsed);
-      }
-    } catch {
-      setFavorites([]);
-    }
-  }, [pathname]);
+  const defaultSeason = getDefaultSeason();
+  const season = yearFromPath ?? globalState.lastUsedSeason ?? String(defaultSeason);
+  const seasonForLinks = yearFromPath ?? String(defaultSeason);
 
   const handleSeasonChange = (newSeason: string) => {
     setLastUsedSeason(newSeason);
     if (pathname?.startsWith("/season/")) {
       const rest = pathname.replace(/^\/season\/\d+/, "");
-      const newPath = `/season/${newSeason}${rest}`;
-      router.push(newPath);
+      router.push(`/season/${newSeason}${rest}`);
     } else {
       router.push(`/season/${newSeason}`);
     }
   };
-
-  const seasonForLinks = yearFromPath ?? String(currentYear);
 
   const navLinks = (
     <>
@@ -69,7 +57,7 @@ export function Navbar() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="border-zinc-700 bg-zinc-800 text-zinc-100">
-          {favorites.length > 0 ? (
+          {hydrated && favorites.length > 0 ? (
             favorites.map(({ name, id }) => (
               <DropdownMenuItem key={id} asChild>
                 <Link href={`/season/${seasonForLinks}/team/${id}`}>{name}</Link>
@@ -93,12 +81,10 @@ export function Navbar() {
           <span className="hidden sm:inline">College Football Stats</span>
           <span className="sm:hidden">CFB Stats</span>
         </Link>
-        {/* Desktop: nav links + season select */}
         <div className="hidden md:flex items-center gap-4 lg:gap-6 shrink-0">
           {navLinks}
           <SeasonSelect value={season} onValueChange={handleSeasonChange} />
         </div>
-        {/* Mobile: hamburger menu with nav + season */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -119,18 +105,16 @@ export function Navbar() {
               <Link
                 href={`/season/${seasonForLinks}`}
                 className="px-2 py-2 rounded-md text-sm text-zinc-100 hover:bg-zinc-700"
-                onClick={() => document.dispatchEvent(new Event("close-mobile-nav"))}
               >
                 Home
               </Link>
               <div className="text-xs font-medium text-zinc-500 px-2 pt-1">Favorites</div>
-              {favorites.length > 0 ? (
+              {hydrated && favorites.length > 0 ? (
                 favorites.map(({ name, id }) => (
                   <Link
                     key={id}
                     href={`/season/${seasonForLinks}/team/${id}`}
                     className="px-2 py-2 rounded-md text-sm text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
-                    onClick={() => document.dispatchEvent(new Event("close-mobile-nav"))}
                   >
                     {name}
                   </Link>

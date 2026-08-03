@@ -18,9 +18,11 @@ type TeamCardProps = {
   logo: string;
   conferenceLogo?: string | null;
   favorite?: { id: number; name: string } | false;
-  makeFavorite: (id: number) => void;
+  onToggleFavorite: () => void;
   links?: { href: string; text: string }[];
   customStyle?: { color?: string; backgroundColor?: string };
+  ratingChip?: string | null;
+  atsChip?: string | null;
   children: React.ReactNode;
 };
 
@@ -31,9 +33,11 @@ export function TeamCard({
   logo,
   conferenceLogo,
   favorite,
-  makeFavorite,
+  onToggleFavorite,
   links = [],
   customStyle = {},
+  ratingChip,
+  atsChip,
   children,
 }: TeamCardProps) {
   return (
@@ -54,7 +58,18 @@ export function TeamCard({
             />
           ) : null}
           <h2 className="text-base sm:text-lg font-semibold text-center sm:text-left text-zinc-100 [text-shadow:0_0_2px_rgba(0,0,0,0.5)] truncate min-w-0">
-            {title} <span className="text-zinc-400 font-normal">({record})</span>
+            {title}{" "}
+            <span className="text-zinc-400 font-normal">({record})</span>
+            {ratingChip && (
+              <span className="ml-2 text-xs font-normal text-zinc-300 bg-zinc-900/50 px-2 py-0.5 rounded">
+                {ratingChip}
+              </span>
+            )}
+            {atsChip && (
+              <span className="ml-1 text-xs font-normal text-zinc-400">
+                ATS {atsChip}
+              </span>
+            )}
           </h2>
         </div>
         <div className="flex items-center gap-2 shrink-0 order-2">
@@ -75,7 +90,13 @@ export function TeamCard({
             </DropdownMenuContent>
           </DropdownMenu>
           {favorite && typeof favorite === "object" && favorite.id ? (
-            <Button variant="secondary" size="icon" className="bg-zinc-700 text-red-400 hover:bg-zinc-600 size-8 sm:size-9">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="bg-zinc-700 text-red-400 hover:bg-zinc-600 size-8 sm:size-9"
+              onClick={onToggleFavorite}
+              aria-label="Remove from favorites"
+            >
               <Heart className="h-4 w-4 fill-red-500 text-red-500" />
             </Button>
           ) : (
@@ -83,7 +104,8 @@ export function TeamCard({
               variant="outline"
               size="icon"
               className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 size-8 sm:size-9"
-              onClick={() => makeFavorite(id)}
+              onClick={onToggleFavorite}
+              aria-label="Add to favorites"
             >
               <Heart className="h-4 w-4" />
             </Button>

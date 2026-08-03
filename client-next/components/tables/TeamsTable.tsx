@@ -18,7 +18,9 @@ const PAGE_SIZE = 25;
 export type TeamsTableRow = {
   id: number;
   name: string;
-  rank: number;
+  rank: number | null;
+  rankLabel?: string;
+  rankSource?: string;
   logo: string;
 };
 
@@ -26,9 +28,15 @@ type TeamsTableProps = {
   data: TeamsTableRow[];
   season: string;
   onRowClick: (row: TeamsTableRow) => void;
+  rankSourceLabel?: string;
 };
 
-export function TeamsTable({ data, season, onRowClick }: TeamsTableProps) {
+export function TeamsTable({
+  data,
+  season,
+  onRowClick,
+  rankSourceLabel,
+}: TeamsTableProps) {
   const [nameFilter, setNameFilter] = useState("");
   const [page, setPage] = useState(0);
 
@@ -59,6 +67,11 @@ export function TeamsTable({ data, season, onRowClick }: TeamsTableProps) {
           }}
           className="w-full sm:max-w-xs bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-400 min-h-10"
         />
+        {rankSourceLabel && (
+          <span className="text-xs text-zinc-500 sm:ml-auto">
+            Rank source: {rankSourceLabel}
+          </span>
+        )}
       </div>
       <div className="rounded-md border border-zinc-700 overflow-x-auto -mx-3 sm:mx-0">
         <Table className="min-w-[280px]">
@@ -91,8 +104,11 @@ export function TeamsTable({ data, season, onRowClick }: TeamsTableProps) {
                   )}
                 </TableCell>
                 <TableCell className="font-medium text-sm sm:text-base py-2.5 sm:py-3">{row.name}</TableCell>
-                <TableCell className="text-right text-zinc-400 text-sm py-2.5 sm:py-3">
-                  {row.rank === 0 ? "—" : row.rank}
+                <TableCell
+                  className="text-right text-zinc-400 text-sm py-2.5 sm:py-3"
+                  title={row.rankLabel}
+                >
+                  {row.rank != null && row.rank > 0 ? row.rank : "NR"}
                 </TableCell>
               </TableRow>
             ))}
