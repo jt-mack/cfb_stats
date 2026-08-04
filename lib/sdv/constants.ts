@@ -10,8 +10,8 @@ export const REGULAR_SEASON_TYPE = 2;
 /** Postseason seasontype on ESPN scoreboard API. */
 export const POSTSEASON_SEASON_TYPE = 3;
 
-/** Power-4 + SEC/B1G/ACC/B12/B8/SEC conference group ids we surface in the UI. */
-export const MAIN_CONFERENCE_IDS = new Set([1, 4, 5, 8, 9]);
+/** Power conferences surfaced in quick-links (ACC, Big 12, Big Ten, SEC). */
+export const MAIN_CONFERENCE_IDS = new Set([1, 4, 5, 8]);
 
 /**
  * ESPN FBS conference group ids (stable). Used with `espnCfbStandings`.

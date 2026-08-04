@@ -54,18 +54,30 @@ export function Coach({ teamId, season }: CoachProps) {
           {primary.hireDate && (
             <p className="text-sm text-zinc-400 flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              Hired {formatHireDate(primary.hireDate)}
+              {/^\d{4}$/.test(primary.hireDate)
+                ? `First season ${primary.hireDate}`
+                : `Hired ${formatHireDate(primary.hireDate)}`}
+              {primary.seasonsAtSchool != null ? ` · ${primary.seasonsAtSchool} season(s) at school` : ""}
             </p>
           )}
         </CardHeader>
-        {currentSeason && (
-          <CardContent>
-            <p className="text-zinc-300">
+        <CardContent className="space-y-1 text-sm text-zinc-300">
+          {primary.schoolRecordSummary && (
+            <p>Record at school: {primary.schoolRecordSummary}</p>
+          )}
+          {primary.careerRecordSummary && (
+            <p className="text-zinc-400">Career overall: {primary.careerRecordSummary}</p>
+          )}
+          {currentSeason && (
+            <p>
               {currentSeason.year} Record: {currentSeason.wins}-{currentSeason.losses}
               {currentSeason.ties ? `-${currentSeason.ties}` : ""}
             </p>
-          </CardContent>
-        )}
+          )}
+          {primary.partialTenure && (
+            <p className="text-xs text-amber-400/90">Partial tenure data — some seasons may be missing.</p>
+          )}
+        </CardContent>
       </Card>
 
       {primary.seasons && primary.seasons.length > 0 && (

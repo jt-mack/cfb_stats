@@ -1,0 +1,56 @@
+"use client";
+
+import Image from "next/image";
+import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
+import { useNews } from "@/lib/hooks/queries";
+import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+
+export default function NewsPageClient() {
+  const { year, isValidSeason } = useSeasonParams();
+  const { data: articles = [], isLoading, isError } = useNews(30);
+
+  if (!year || !isValidSeason) return <PageError message="Invalid route." />;
+  if (isLoading) return <PageSpinner heightClass="h-[40vh]" />;
+  if (isError) return <PageError message="Failed to load news." />;
+
+  return (
+    <div className="space-y-4 min-w-0">
+      <div className="text-center space-y-1">
+        <h1 className="text-xl font-semibold text-zinc-100">College Football News</h1>
+        <p className="text-sm text-zinc-400">Headlines from ESPN. Articles open on the source site.</p>
+      </div>
+      <div className="space-y-3">
+        {articles.map((a) => (
+          <a
+            key={a.id}
+            href={a.link ?? undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex gap-3 rounded-md border border-zinc-700 bg-zinc-800 p-3 hover:bg-zinc-700"
+          >
+            {a.imageUrl && (
+              <Image
+                src={a.imageUrl}
+                alt=""
+                width={120}
+                height={68}
+                className="rounded object-cover shrink-0 hidden sm:block"
+                unoptimized
+              />
+            )}
+            <div className="min-w-0">
+              <h2 className="text-sm font-medium text-zinc-100">{a.headline}</h2>
+              {a.description && <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{a.description}</p>}
+              <p className="text-xs text-zinc-500 mt-2">
+                {a.published ? new Date(a.published).toLocaleString("en-US") : ""}
+                {a.byline ? ` · ${a.byline}` : ""}
+                {a.premium ? " · Premium" : ""}
+              </p>
+            </div>
+          </a>
+        ))}
+        {!articles.length && <p className="text-center text-zinc-400">No articles available.</p>}
+      </div>
+    </div>
+  );
+}

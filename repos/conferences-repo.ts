@@ -1,4 +1,5 @@
 import {
+  FBS_GROUP,
   fetchParsedStandings,
   fetchRawStandings,
   listFbsConferences,
@@ -48,6 +49,17 @@ export class ConferencesRepo {
     const conference = conf.abbreviation ?? conf.shortName ?? conf.name;
     return extractStandingsEntries(raw).map((entry) =>
       mapStandingsEntryToRecord(entry, year, conference)
+    );
+  }
+
+  /** FBS-wide standings — not an official national ranking. */
+  async getFbsRecords(year: number): Promise<TeamRecords[]> {
+    const raw = await fetchRawStandings(year, FBS_GROUP, {
+      cacheKey: `fbsRecordsRaw:${year}`,
+      cacheTtlMs: 15 * 60 * 1000,
+    });
+    return extractStandingsEntries(raw).map((entry) =>
+      mapStandingsEntryToRecord(entry, year, 'FBS')
     );
   }
 }

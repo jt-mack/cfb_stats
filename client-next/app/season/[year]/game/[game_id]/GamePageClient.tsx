@@ -203,7 +203,13 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
           />
         )}
         {seasonStatsChart && seasonStatsChart.datasets.length > 0 && (
-          <BarChart labels={seasonStatsChart.labels} datasets={seasonStatsChart.datasets} />
+          <div className="space-y-1">
+            <p className="text-xs text-zinc-500 text-center">
+              {preview?.statsLabel ?? "ESPN efficiency (season-to-date)"}
+              {preview?.statsYear ? ` · ${preview.statsYear}` : ""}
+            </p>
+            <BarChart labels={seasonStatsChart.labels} datasets={seasonStatsChart.datasets} />
+          </div>
         )}
         {(homeWinProb != null || spread != null) && (
           <div className="flex flex-col items-center justify-center gap-2 text-zinc-100">
@@ -252,9 +258,14 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
             {preview.matchup.team1} {preview.matchup.team1Wins} – {preview.matchup.team2Wins} {preview.matchup.team2}
             {preview.matchup.ties > 0 ? ` (${preview.matchup.ties} ties)` : ""}
           </p>
+          {preview.matchup.sinceSeason != null && (
+            <p className="text-center text-xs text-zinc-500 mt-1">
+              Series since {preview.matchup.sinceSeason} (not all-time)
+            </p>
+          )}
           {preview.matchup.games?.length > 0 && (
             <ul className="mt-2 text-xs text-zinc-400 space-y-1 max-h-32 overflow-y-auto">
-              {[...preview.matchup.games].reverse().slice(0, 5).map((g, i) => (
+              {[...preview.matchup.games].slice(0, 10).map((g, i) => (
                 <li key={i} className="text-center">
                   {g.season}: {g.awayTeam} {g.awayScore ?? "—"} @ {g.homeTeam} {g.homeScore ?? "—"}
                 </li>

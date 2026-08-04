@@ -1,5 +1,7 @@
 import type { GameDetail } from './games-repo';
 import { GamesRepo } from './games-repo';
+import { LeadersRepo } from './leaders-repo';
+import { MatchupSeriesRepo } from './matchup-series-repo';
 import { TeamsRepo } from './teams-repo';
 import { teamIndex } from '../lib/team-index';
 import {
@@ -18,6 +20,7 @@ import {
 import type {
   AdvancedSeasonStat,
   Game,
+  LeaderEntry,
   Matchup,
   PlayerStat,
   PregameWinProbability,
@@ -41,7 +44,10 @@ export type GamePreview = {
   media: import('../lib/types').GameMedia[];
   weather: import('../lib/types').GameWeather | null;
   statsYear: number;
+  statsLabel: string;
 };
+
+const STATS_LABEL = 'ESPN efficiency (season-to-date)';
 
 const LEADER_CATEGORIES = ['passing', 'rushing', 'receiving'];
 
@@ -57,11 +63,27 @@ const EMPTY_PREVIEW = (statsYear: number): GamePreview => ({
   media: [],
   weather: null,
   statsYear,
+  statsLabel: STATS_LABEL,
 });
+
+function leaderEntriesToPlayerStats(entries: LeaderEntry[]): PlayerStat[] {
+  return entries.map((entry) => ({
+    playerId: entry.playerId,
+    player: entry.player,
+    team: entry.team,
+    position: entry.position ?? '',
+    category: entry.category,
+    statType: entry.category,
+    stat: entry.displayValue || String(entry.value),
+    season: entry.season,
+  }));
+}
 
 export class MatchupPreviewRepo {
   private teamsRepo = new TeamsRepo();
   private gamesRepo = new GamesRepo();
+  private seriesRepo = new MatchupSeriesRepo();
+  private leadersRepo = new LeadersRepo();
 
   async getGamePreview(gameId: number, season?: number): Promise<GamePreview> {
     const statsYear = season ?? getDefaultSeason();
@@ -79,32 +101,26 @@ export class MatchupPreviewRepo {
 
       let matchup: Matchup | null = null;
       try {
-        const [homeSchedule, awaySchedule] = await Promise.all([
-          this.gamesRepo.getSchedule(homeTeam, year),
-          this.gamesRepo.getSchedule(awayTeam, year),
-        ]);
-        matchup = buildMatchupFromSchedules(homeTeam, awayTeam, homeSchedule, awaySchedule);
+        matchup = await this.seriesRepo.getSeries(homeTeam, awayTeam, year);
       } catch (err) {
-        console.warn(`Matchup history unavailable for ${gameId}:`, err instanceof Error ? err.message : err);
+        console.warn(
+          `Series matchup unavailable for ${gameId}, falling back to same-year schedules:`,
+          err instanceof Error ? err.message : err
+        );
+        try {
+          const [homeSchedule, awaySchedule] = await Promise.all([
+            this.gamesRepo.getSchedule(homeTeam, year),
+            this.gamesRepo.getSchedule(awayTeam, year),
+          ]);
+          matchup = buildMatchupFromSchedules(homeTeam, awayTeam, homeSchedule, awaySchedule);
+        } catch (fallbackErr) {
+          console.warn(
+            `Matchup history unavailable for ${gameId}:`,
+            fallbackErr instanceof Error ? fallbackErr.message : fallbackErr
+          );
+        }
       }
 
-      if (completed) {
-        return {
-          game,
-          completed: true,
-          detail,
-          matchup,
-          advancedSeasonStats: [],
-          playerSeasonStats: [],
-          odds: null,
-          lines: null,
-          media: [],
-          weather: null,
-          statsYear: year,
-        };
-      }
-
-      const { odds, lines, media, weather } = mapPicksToOdds(summaryToPicks(summaryRaw, gameId), game);
       const leaders = (summaryRaw.leaders as Record<string, unknown>[] | undefined) ?? [];
 
       let advancedSeasonStats: AdvancedSeasonStat[] = [];
@@ -122,7 +138,10 @@ export class MatchupPreviewRepo {
         try {
           piRows = await fetchSeasonPowerIndex(powerIndexYear, { timeoutMs: 6_000 });
         } catch (err) {
-          console.warn(`Power index unavailable for preview ${gameId}:`, err instanceof Error ? err.message : err);
+          console.warn(
+            `Power index unavailable for preview ${gameId}:`,
+            err instanceof Error ? err.message : err
+          );
         }
 
         advancedSeasonStats = mapPowerIndexToAdvancedStats(piRows, powerIndexYear, idToSchool).filter(
@@ -130,16 +149,65 @@ export class MatchupPreviewRepo {
         );
         effectiveStatsYear = powerIndexYear;
 
-        if (leaders.length > 0) {
-          playerSeasonStats = await this.enrichPlayerStats(
-            this.pickLeaders(mapLeadersToPlayerStats(leaders, effectiveStatsYear), homeTeam, awayTeam),
-            homeTeam,
-            awayTeam,
-            effectiveStatsYear,
-            teams
-          );
+        if (!completed) {
+          let rawPlayerStats: PlayerStat[] = [];
+
+          if (leaders.length > 0) {
+            rawPlayerStats = this.pickLeaders(
+              mapLeadersToPlayerStats(leaders, effectiveStatsYear),
+              homeTeam,
+              awayTeam
+            );
+          } else {
+            const [homeId, awayId] = await Promise.all([
+              teamIndex.resolveTeamId(homeTeam, effectiveStatsYear),
+              teamIndex.resolveTeamId(awayTeam, effectiveStatsYear),
+            ]);
+            const [homeLeaders, awayLeaders] = await Promise.all([
+              homeId != null
+                ? this.leadersRepo.getTeamLeaders(homeId, effectiveStatsYear).catch(() => [])
+                : Promise.resolve([]),
+              awayId != null
+                ? this.leadersRepo.getTeamLeaders(awayId, effectiveStatsYear).catch(() => [])
+                : Promise.resolve([]),
+            ]);
+            rawPlayerStats = this.pickLeaders(
+              leaderEntriesToPlayerStats([...homeLeaders, ...awayLeaders]),
+              homeTeam,
+              awayTeam
+            );
+          }
+
+          if (rawPlayerStats.length > 0) {
+            playerSeasonStats = await this.enrichPlayerStats(
+              rawPlayerStats,
+              homeTeam,
+              awayTeam,
+              effectiveStatsYear,
+              teams
+            );
+          }
         }
       }
+
+      if (completed) {
+        return {
+          game,
+          completed: true,
+          detail,
+          matchup,
+          advancedSeasonStats,
+          playerSeasonStats: [],
+          odds: null,
+          lines: null,
+          media: [],
+          weather: null,
+          statsYear: effectiveStatsYear,
+          statsLabel: STATS_LABEL,
+        };
+      }
+
+      const { odds, lines, media, weather } = mapPicksToOdds(summaryToPicks(summaryRaw, gameId), game);
 
       return {
         game,
@@ -153,6 +221,7 @@ export class MatchupPreviewRepo {
         media,
         weather,
         statsYear: effectiveStatsYear,
+        statsLabel: STATS_LABEL,
       };
     } catch (error) {
       console.error('getGamePreview failed:', error);
@@ -164,7 +233,10 @@ export class MatchupPreviewRepo {
     const filtered = stats.filter((s) => s.team === homeTeam || s.team === awayTeam);
     const bestByCategory = new Map<string, PlayerStat>();
     for (const stat of filtered) {
-      const categoryKey = LEADER_CATEGORIES.find((c) => stat.category?.toLowerCase().includes(c));
+      const categoryKey = LEADER_CATEGORIES.find(
+        (c) =>
+          stat.category?.toLowerCase().includes(c) || stat.statType?.toLowerCase().includes(c)
+      );
       if (!categoryKey) continue;
       const existing = bestByCategory.get(`${stat.team}:${categoryKey}`);
       const statVal = parseFloat(String(stat.stat).replace(/,/g, ''));

@@ -41,7 +41,11 @@ export async function getCalendar(year: number) {
   );
 }
 
-export async function getWeekGames(year: number, week: number) {
+export async function getWeekGames(
+  year: number,
+  week: number,
+  seasontype: number | string = 2
+) {
   return get<
     {
       id: number;
@@ -52,8 +56,10 @@ export async function getWeekGames(year: number, week: number) {
       awayPoints: number | null;
       completed: boolean;
       startDate: string;
+      status?: string;
+      venue?: string | null;
     }[]
-  >(`/week/${year}/${week}`);
+  >(`/week/${year}/${week}`, { seasontype });
 }
 
 export type TeamRatings = {

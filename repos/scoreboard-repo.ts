@@ -48,7 +48,11 @@ export class ScoreboardRepo {
     });
   }
 
-  async getWeekGames(year: number, week: number): Promise<Game[]> {
-    return this.gamesRepo.getWeekGamesFromScoreboard(year, week);
+  async getWeekGames(
+    year: number,
+    week: number,
+    seasontype: number = REGULAR_SEASON_TYPE
+  ): Promise<Game[]> {
+    return this.gamesRepo.getWeekGamesFromScoreboard(year, week, seasontype);
   }
 }

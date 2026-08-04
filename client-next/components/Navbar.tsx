@@ -21,6 +21,15 @@ function parseYearFromPath(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
+const PRIMARY_LINKS = [
+  { label: "Home", href: (y: string) => `/season/${y}` },
+  { label: "Scores", href: (y: string) => `/season/${y}/scores` },
+  { label: "Standings", href: (y: string) => `/season/${y}/standings` },
+  { label: "Rankings", href: (y: string) => `/season/${y}/rankings` },
+  { label: "Statistics", href: (y: string) => `/season/${y}/stats` },
+  { label: "News", href: (y: string) => `/season/${y}/news` },
+] as const;
+
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -44,12 +53,15 @@ export function Navbar() {
 
   const navLinks = (
     <>
-      <Link
-        href={`/season/${seasonForLinks}`}
-        className="text-sm text-zinc-400 hover:text-zinc-100 whitespace-nowrap"
-      >
-        Home
-      </Link>
+      {PRIMARY_LINKS.map((link) => (
+        <Link
+          key={link.label}
+          href={link.href(seasonForLinks)}
+          className="text-sm text-zinc-400 hover:text-zinc-100 whitespace-nowrap"
+        >
+          {link.label}
+        </Link>
+      ))}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800">
@@ -81,7 +93,7 @@ export function Navbar() {
           <span className="hidden sm:inline">College Football Stats</span>
           <span className="sm:hidden">CFB Stats</span>
         </Link>
-        <div className="hidden md:flex items-center gap-4 lg:gap-6 shrink-0">
+        <div className="hidden lg:flex items-center gap-3 xl:gap-5 shrink-0">
           {navLinks}
           <SeasonSelect value={season} onValueChange={handleSeasonChange} />
         </div>
@@ -90,7 +102,7 @@ export function Navbar() {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 shrink-0"
+              className="lg:hidden text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 shrink-0"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
@@ -102,12 +114,15 @@ export function Navbar() {
             className="border-zinc-700 bg-zinc-800 text-zinc-100 w-[min(100vw-2rem,320px)] p-3 space-y-3"
           >
             <div className="flex flex-col gap-1">
-              <Link
-                href={`/season/${seasonForLinks}`}
-                className="px-2 py-2 rounded-md text-sm text-zinc-100 hover:bg-zinc-700"
-              >
-                Home
-              </Link>
+              {PRIMARY_LINKS.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href(seasonForLinks)}
+                  className="px-2 py-2 rounded-md text-sm text-zinc-100 hover:bg-zinc-700"
+                >
+                  {link.label}
+                </Link>
+              ))}
               <div className="text-xs font-medium text-zinc-500 px-2 pt-1">Favorites</div>
               {hydrated && favorites.length > 0 ? (
                 favorites.map(({ name, id }) => (

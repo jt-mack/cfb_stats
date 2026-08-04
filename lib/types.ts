@@ -146,6 +146,8 @@ export interface Matchup {
   team1Wins: number;
   team2Wins: number;
   ties: number;
+  /** Earliest season included in the calculated series (disclosed range). */
+  sinceSeason?: number;
   games: {
     season: number;
     date: string;
@@ -212,6 +214,11 @@ export interface Coach {
   lastName: string;
   hireDate: string;
   seasons: CoachSeason[];
+  /** True when school tenure could only be partially reconstructed. */
+  partialTenure?: boolean;
+  seasonsAtSchool?: number;
+  schoolRecordSummary?: string;
+  careerRecordSummary?: string;
 }
 
 export interface SpRating {
@@ -230,12 +237,18 @@ export interface CalendarWeek {
 
 export interface PollRank {
   rank: number;
+  previous?: number | null;
   teamId: number;
   school?: string;
+  record?: string;
+  points?: number | null;
+  firstPlaceVotes?: number | null;
+  trend?: string | null;
 }
 
 export interface Poll {
   poll: string;
+  pollType?: string;
   ranks: PollRank[];
 }
 
@@ -244,4 +257,47 @@ export interface PollWeek {
   seasonType: string;
   week: number;
   polls: Poll[];
+  headline?: string;
+}
+
+export interface NewsArticle {
+  id: string;
+  headline: string;
+  description: string;
+  published: string;
+  byline: string | null;
+  imageUrl: string | null;
+  link: string | null;
+  premium: boolean;
+  categories: string[];
+}
+
+export interface LeaderEntry {
+  rank: number;
+  playerId: string;
+  player: string;
+  teamId: number;
+  team: string;
+  position: string | null;
+  category: string;
+  categoryDisplay: string;
+  value: number;
+  displayValue: string;
+  season: number;
+}
+
+export interface DepthChartPlayer {
+  athleteId: string;
+  name: string;
+  jersey: string | null;
+  position: string;
+  rank: number;
+  unit: string;
+}
+
+export interface DepthChart {
+  teamId: number;
+  season: number;
+  available: boolean;
+  players: DepthChartPlayer[];
 }

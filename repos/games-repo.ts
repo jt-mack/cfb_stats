@@ -39,11 +39,15 @@ export class GamesRepo {
     return mapSummaryToGameDetail(summary);
   }
 
-  async getWeekGamesFromScoreboard(year: number, week: number): Promise<Game[]> {
+  async getWeekGamesFromScoreboard(
+    year: number,
+    week: number,
+    seasontype: number = REGULAR_SEASON_TYPE
+  ): Promise<Game[]> {
     const rows = await fetchParsedScoreboard({
       season: year,
       week,
-      seasontype: REGULAR_SEASON_TYPE,
+      seasontype,
       groups: FBS_GROUP,
       limit: 300,
     });

@@ -163,6 +163,7 @@ export interface GamePreview {
     team1Wins: number;
     team2Wins: number;
     ties: number;
+    sinceSeason?: number;
     games: {
       season: number;
       date: string;
@@ -206,6 +207,7 @@ export interface GamePreview {
     condition?: { description?: string };
   } | null;
   statsYear: number;
+  statsLabel?: string;
 }
 
 /** Single season of a coach at a school (from coaches endpoint). */
@@ -224,10 +226,81 @@ export interface CoachSeason {
   spDefense?: number;
 }
 
-/** Coach record from College Football Data API coaches endpoint. */
+/** Coach record from coaches endpoint. */
 export interface Coach {
   firstName: string;
   lastName: string;
   hireDate: string;
   seasons: CoachSeason[];
+  partialTenure?: boolean;
+  seasonsAtSchool?: number;
+  schoolRecordSummary?: string;
+  careerRecordSummary?: string;
+}
+
+export interface NewsArticle {
+  id: string;
+  headline: string;
+  description: string;
+  published: string;
+  byline: string | null;
+  imageUrl: string | null;
+  link: string | null;
+  premium: boolean;
+  categories: string[];
+}
+
+export interface LeaderEntry {
+  rank: number;
+  playerId: string;
+  player: string;
+  teamId: number;
+  team: string;
+  position: string | null;
+  category: string;
+  categoryDisplay: string;
+  value: number;
+  displayValue: string;
+  season: number;
+}
+
+export interface PollRank {
+  rank: number;
+  previous?: number | null;
+  teamId: number;
+  school?: string;
+  record?: string;
+  points?: number | null;
+  firstPlaceVotes?: number | null;
+  trend?: string | null;
+}
+
+export interface Poll {
+  poll: string;
+  pollType?: string;
+  ranks: PollRank[];
+}
+
+export interface PollWeek {
+  season: number;
+  seasonType: string;
+  week: number;
+  polls: Poll[];
+  headline?: string;
+}
+
+export interface DepthChartPlayer {
+  athleteId: string;
+  name: string;
+  jersey: string | null;
+  position: string;
+  rank: number;
+  unit: string;
+}
+
+export interface DepthChart {
+  teamId: number;
+  season: number;
+  available: boolean;
+  players: DepthChartPlayer[];
 }

@@ -36,12 +36,25 @@ export const TEAM_TABS: ReadonlyArray<{
   label: string;
   wideOnMobile?: boolean;
 }> = [
+  { slug: "overview", label: "Overview" },
   { slug: "schedule", label: "Schedule" },
+  { slug: "leaders", label: "Leaders" },
   { slug: "roster", label: "Roster" },
+  { slug: "depth", label: "Depth" },
   { slug: "coach", label: "Coach" },
   { slug: "recruiting", label: "Recruiting" },
   { slug: "standings", label: "Standings", wideOnMobile: true },
+  { slug: "news", label: "News" },
 ];
 
-export type TeamTabSlug = "schedule" | "roster" | "coach" | "recruiting" | "standings";
+export type TeamTabSlug =
+  | "overview"
+  | "schedule"
+  | "leaders"
+  | "roster"
+  | "depth"
+  | "coach"
+  | "recruiting"
+  | "standings"
+  | "news";
 

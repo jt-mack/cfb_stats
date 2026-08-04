@@ -45,17 +45,25 @@ export {
   fetchCoach,
   fetchCoachRecord,
   fetchTeamCoachEntry,
+  fetchNews,
+  fetchTeamNews,
+  fetchSeasonTypeLeaders,
+  fetchTeamDepthcharts,
+  fetchAthleteDisplayName,
+  idFromRef,
   normalizeSummary,
   summaryToPicks,
   type ScoreboardParams,
   type TeamScheduleParams,
   type SummarySection,
   type SeasonWeekInfo,
+  type SeasonLeadersPayload,
 } from './cfb';
 
 export {
   normalizeRankingsPayload,
   parsePollRankMap,
+  parsePollWeek,
 } from './rankings';
 
 export {

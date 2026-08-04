@@ -37,9 +37,20 @@ router.get('/week/:year/:week', async (req: Request, res: Response) => {
   const week = parseWeekParam(String(req.params.week));
   if (year == null || week == null) return res.status(400).json({ error: 'Invalid year or week' });
 
-  const cacheKey = `week_games_${year}_${week}`;
+  const seasontypeRaw = req.query.seasontype ?? req.query.seasonType;
+  const seasontypeNum = seasontypeRaw != null ? Number(seasontypeRaw) : NaN;
+  const seasontype =
+    seasontypeNum === 1 || seasontypeNum === 2 || seasontypeNum === 3
+      ? seasontypeNum
+      : String(seasontypeRaw).toLowerCase() === 'postseason'
+        ? 3
+        : String(seasontypeRaw).toLowerCase() === 'preseason'
+          ? 1
+          : 2;
+
+  const cacheKey = `week_games_${year}_${week}_${seasontype}`;
   const ttl = year === getDefaultSeason() ? 900 : 3600;
-  await cachedJson(res, cacheKey, ttl, () => scoreboardRepo.getWeekGames(year, week));
+  await cachedJson(res, cacheKey, ttl, () => scoreboardRepo.getWeekGames(year, week, seasontype));
 });
 
 router.get('/ratings/:year/team/:team_name', async (req: Request, res: Response) => {

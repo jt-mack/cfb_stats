@@ -63,6 +63,23 @@ export default function SeasonPageClient() {
         </div>
       )}
       <ScoreboardStrip year={year} seasonContext={seasonContext ?? null} enabled={!loading} />
+      <div className="mb-4 flex flex-wrap gap-2 justify-center px-1">
+        {[
+          { href: `/season/${year}/scores`, label: "Scores" },
+          { href: `/season/${year}/standings`, label: "Standings" },
+          { href: `/season/${year}/rankings`, label: "Rankings" },
+          { href: `/season/${year}/stats`, label: "Statistics" },
+          { href: `/season/${year}/news`, label: "News" },
+        ].map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="text-xs px-2 py-1 rounded border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
+          >
+            {l.label}
+          </Link>
+        ))}
+      </div>
       {mainConferences.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-2 justify-center px-1">
           {mainConferences.map((c) => (

@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function TeamPage({ params }: PageProps) {
   const { year, team_id } = await params;
-  redirect(`/season/${year}/team/${team_id}/schedule`);
+  redirect(`/season/${year}/team/${team_id}/overview`);
 }

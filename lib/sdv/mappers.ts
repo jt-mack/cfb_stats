@@ -666,7 +666,10 @@ export function buildMatchupFromSchedules(team1: string, team2: string, schedule
     return { season: g.season, date: g.startDate, homeTeam: g.homeTeam, awayTeam: g.awayTeam, homeScore, awayScore };
   });
 
-  return { team1, team2, team1Wins, team2Wins, ties, games };
+  const seasons = games.map((g) => g.season).filter((y) => Number.isFinite(y));
+  const sinceSeason = seasons.length ? Math.min(...seasons) : undefined;
+
+  return { team1, team2, team1Wins, team2Wins, ties, sinceSeason, games };
 }
 
 export function mapScoreboardRowsToGames(rows: SdvParsedScoreboardRow[], week: number): Game[] {

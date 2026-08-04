@@ -23,6 +23,15 @@ export async function getStandings(
   return Array.isArray(data) ? data : [];
 }
 
+/** FBS-wide standings listing (not an official national ranking). */
+export async function getFbsStandings(season?: number): Promise<TeamRecords[]> {
+  const data = await get<TeamRecords[]>(
+    "/standings",
+    season !== undefined ? { season } : undefined
+  );
+  return Array.isArray(data) ? data : [];
+}
+
 /**
  * Teams in a conference (backend: GET /teams/conference/:id).
  */

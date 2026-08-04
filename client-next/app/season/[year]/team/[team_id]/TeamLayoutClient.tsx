@@ -32,9 +32,9 @@ function resolveConference(conferenceId: string, conferences: Conference[]): Con
 }
 
 function getActiveTab(pathname: string, basePath: string): TeamTabSlug {
-  const suffix = pathname.slice(basePath.length).replace(/^\//, "");
+  const suffix = pathname.slice(basePath.length).replace(/^\//, "").split("/")[0];
   const match = TEAM_TABS.find((tab) => tab.slug === suffix);
-  return match?.slug ?? "schedule";
+  return match?.slug ?? "overview";
 }
 
 type TeamLayoutClientProps = {

@@ -17,6 +17,7 @@ import {
   getScheduleEnrichment,
   getLiveScoreboard,
   getWeekGames,
+  getCalendar,
   getTeamRatings,
   getTeamRecruiting,
   getGameDrives,
@@ -24,6 +25,15 @@ import {
 } from "@/lib/repos/extrasRepo";
 import { getGamePreview } from "@/lib/repos/gamesRepo";
 import { shouldUseLiveScoreboard } from "@/lib/scoreboardStripHelpers";
+import { getFbsStandings } from "@/lib/repos/conferencesRepo";
+import {
+  getNews,
+  getTeamNews,
+  getLeaders,
+  getTeamLeaders,
+  getRankings,
+  getDepthChart,
+} from "@/lib/repos/contentRepo";
 
 export function useDefaultSeason() {
   return useQuery({
@@ -62,6 +72,23 @@ export function useStandings(confId: string | undefined, season: number | undefi
     queryKey: ["standings", confId, season],
     queryFn: () => getStandings(confId!, season),
     enabled: Boolean(confId) && season != null && !Number.isNaN(season),
+  });
+}
+
+export function useFbsStandings(season: number | undefined) {
+  return useQuery({
+    queryKey: ["fbsStandings", season],
+    queryFn: () => getFbsStandings(season),
+    enabled: season != null && !Number.isNaN(season),
+  });
+}
+
+export function useCalendar(year: number | undefined) {
+  return useQuery({
+    queryKey: ["calendar", year],
+    queryFn: () => getCalendar(year!),
+    enabled: year != null && !Number.isNaN(year),
+    staleTime: 60 * 60 * 1000,
   });
 }
 
@@ -129,10 +156,15 @@ export function useTeamRecruiting(teamName: string | undefined, season: number |
   });
 }
 
-export function useWeekGames(year: number | undefined, week: number | undefined, enabled = true) {
+export function useWeekGames(
+  year: number | undefined,
+  week: number | undefined,
+  enabled = true,
+  seasontype: number | string = 2
+) {
   return useQuery({
-    queryKey: ["weekGames", year, week],
-    queryFn: () => getWeekGames(year!, week!),
+    queryKey: ["weekGames", year, week, seasontype],
+    queryFn: () => getWeekGames(year!, week!, seasontype),
     enabled: enabled && year != null && week != null && !Number.isNaN(year) && !Number.isNaN(week),
   });
 }
@@ -184,5 +216,56 @@ export function useGamePlays(gameId: number | undefined, enabled = true) {
     queryKey: ["gamePlays", gameId],
     queryFn: () => getGamePlays(gameId!),
     enabled: enabled && gameId != null && !Number.isNaN(gameId),
+  });
+}
+
+export function useNews(limit = 25) {
+  return useQuery({
+    queryKey: ["news", limit],
+    queryFn: () => getNews(limit),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useTeamNews(teamId: string | undefined, season: number | undefined, limit = 15) {
+  return useQuery({
+    queryKey: ["teamNews", teamId, season, limit],
+    queryFn: () => getTeamNews(teamId!, season, limit),
+    enabled: Boolean(teamId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useLeaders(season: number | undefined, category?: string, limit = 25) {
+  return useQuery({
+    queryKey: ["leaders", season, category, limit],
+    queryFn: () => getLeaders(season!, category, limit),
+    enabled: season != null && !Number.isNaN(season),
+    staleTime: 15 * 60 * 1000,
+  });
+}
+
+export function useTeamLeaders(teamId: string | undefined, season: number | undefined) {
+  return useQuery({
+    queryKey: ["teamLeaders", teamId, season],
+    queryFn: () => getTeamLeaders(teamId!, season!),
+    enabled: Boolean(teamId) && season != null && !Number.isNaN(season),
+  });
+}
+
+export function useRankings(season: number | undefined) {
+  return useQuery({
+    queryKey: ["rankings", season],
+    queryFn: () => getRankings(season),
+    enabled: season != null && !Number.isNaN(season),
+    staleTime: 15 * 60 * 1000,
+  });
+}
+
+export function useDepthChart(teamId: string | undefined, season: number | undefined) {
+  return useQuery({
+    queryKey: ["depthChart", teamId, season],
+    queryFn: () => getDepthChart(teamId!, season!),
+    enabled: Boolean(teamId) && season != null && !Number.isNaN(season),
   });
 }
