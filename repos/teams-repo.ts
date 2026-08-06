@@ -1,3 +1,4 @@
+import { findCoachAssociation } from '../lib/coaches-db';
 import { FBS_GROUP } from '../lib/espn-constants';
 import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
 import type {
@@ -275,18 +276,37 @@ export class TeamsRepo {
     if (!teamId) return [];
 
     try {
-      const [teamResponse, coachEntry] = await Promise.all([
-        fetchTeam(teamId),
-        fetchTeamCoachEntry(teamId, year),
-      ]);
-      let recordSummary = teamResponse.team?.record?.items?.[0]?.summary;
+      const teamResponse = await fetchTeam(teamId).catch(() => null);
+      let recordSummary = teamResponse?.team?.record?.items?.[0]?.summary;
       if (!recordSummary) {
         const rows = await fetchParsedStandings(year, FBS_GROUP, {
           cacheKey: `coachStandings:${year}`,
           cacheTtlMs: 60 * 60 * 1000,
-        });
+        }).catch(() => [] as SdvParsedStandingsRow[]);
         recordSummary = rows.find((r) => Number(r.team_id) === teamId)?.overall;
       }
+
+      // Prefer durable lowdb association (season row, else current coach fallback).
+      const assoc = await findCoachAssociation(teamId, year).catch((err) => {
+        console.warn(`coaches-db lookup failed for ${teamId}:`, err instanceof Error ? err.message : err);
+        return null;
+      });
+      if (assoc?.row) {
+        const coachEntry: SdvSeasonCoachEntry = {
+          id: assoc.row.coachId,
+          firstName: assoc.row.firstName,
+          lastName: assoc.row.lastName,
+          team: {
+            '$ref': `http://sports.core.api.espn.com/v2/sports/football/leagues/college-football/teams/${teamId}`,
+          },
+        };
+        const base = mapSeasonCoachEntry(coachEntry, school, year, recordSummary);
+        if (!base[0]) return [];
+        return [await this.enrichCoachTenure(base[0], assoc.row.coachId, teamId, school, year)];
+      }
+
+      // Live ESPN fallback when lowdb has no association yet.
+      const coachEntry = await fetchTeamCoachEntry(teamId, year);
       if (!coachEntry) return [];
 
       const base = mapSeasonCoachEntry(coachEntry, school, year, recordSummary);
