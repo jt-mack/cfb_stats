@@ -1,16 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useGameDrives, useGamePlays, useGamePreview } from "@/lib/hooks/queries";
 import { normalizeEspnDrive, normalizeEspnPlay } from "@/lib/format";
-import { formatSeasonDate } from "@/lib/seasonHelpers";
-import { ImageCard } from "@/components/cards/ImageCard";
 import { PlayerCard } from "@/components/cards/PlayerCard";
 import { BarChart } from "@/components/charts/BarChart";
 import { WinPercentage } from "@/components/odds/WinPercentage";
 import { Skeleton } from "@/components/ui/skeleton";
-import { VenueCard } from "@/components/cards/VenueCard";
 import {
   Table,
   TableBody,
@@ -20,6 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { GameCard } from "@/components/cards/GameCard";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 type GamePageClientProps = {
   year: string;
@@ -92,7 +90,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   }, [preview?.playerSeasonStats]);
 
   if (!validId) {
-    return <div className="py-8 text-center text-zinc-400">Invalid game id</div>;
+    return <div className="py-8 text-center text-muted-foreground">Invalid game id</div>;
   }
 
   if (isLoading) {
@@ -105,7 +103,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
 
   if (isError && !preview?.game) {
     return (
-      <div className="py-8 text-center text-zinc-400">
+      <div className="py-8 text-center text-muted-foreground">
         {error instanceof Error ? error.message : "Failed to load game"}
       </div>
     );
@@ -113,7 +111,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
 
   if (!preview?.game) {
     return (
-      <div className="py-8 text-center text-zinc-400">
+      <div className="py-8 text-center text-muted-foreground">
         Game preview unavailable. Data may still be loading from ESPN.
       </div>
     );
@@ -141,8 +139,6 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   const mediaOutlets = preview.media?.map((m) => m.outlet).filter(Boolean) ?? [];
   const weather = preview.weather;
 
-  console.log({ game, preview })
-
   return (
     <div className="space-y-6 min-w-0">
       <GameCard game={game} year={Number(year)} />
@@ -154,35 +150,35 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
       )}
 
       {(game.completed || game.homePoints != null) && (
-        <div className="rounded-md border border-zinc-700 overflow-x-auto">
+        <div className="rounded-md border border-border overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-zinc-700">
-                <TableHead className="text-zinc-400">Team</TableHead>
+              <TableRow className="border-border">
+                <TableHead className="text-muted-foreground">Team</TableHead>
                 {game.awayLineScores?.map((_, i) => (
-                  <TableHead key={i} className="text-center text-zinc-400 text-xs">
+                  <TableHead key={i} className="text-center text-muted-foreground text-xs">
                     {i >= 4 ? "OT" : i + 1}
                   </TableHead>
                 ))}
-                <TableHead className="text-end text-zinc-400">F</TableHead>
+                <TableHead className="text-end text-muted-foreground">F</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="border-zinc-700">
-                <TableCell className="text-zinc-100">{game.awayTeam}</TableCell>
+              <TableRow className="border-border">
+                <TableCell className="text-foreground">{game.awayTeam}</TableCell>
                 {game.awayLineScores?.map((s, i) => (
-                  <TableCell key={i} className="text-center text-zinc-300">{s}</TableCell>
+                  <TableCell key={i} className="text-center text-foreground/80">{s}</TableCell>
                 ))}
-                <TableCell className="text-end font-semibold text-zinc-100">
+                <TableCell className="text-end font-semibold text-foreground">
                   {game.awayPoints ?? "—"}
                 </TableCell>
               </TableRow>
-              <TableRow className="border-zinc-700">
-                <TableCell className="text-zinc-100">{game.homeTeam}</TableCell>
+              <TableRow className="border-border">
+                <TableCell className="text-foreground">{game.homeTeam}</TableCell>
                 {game.homeLineScores?.map((s, i) => (
-                  <TableCell key={i} className="text-center text-zinc-300">{s}</TableCell>
+                  <TableCell key={i} className="text-center text-foreground/80">{s}</TableCell>
                 ))}
-                <TableCell className="text-end font-semibold text-zinc-100">
+                <TableCell className="text-end font-semibold text-foreground">
                   {game.homePoints ?? "—"}
                 </TableCell>
               </TableRow>
@@ -195,7 +191,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
 
         {seasonStatsChart && seasonStatsChart.datasets.length > 0 && (
           <div className="space-y-1">
-            <p className="text-xs text-zinc-500 text-center">
+            <p className="text-xs text-muted-foreground text-center">
               {preview?.statsLabel ?? "ESPN efficiency (season-to-date)"}
               {preview?.statsYear ? ` · ${preview.statsYear}` : ""}
             </p>
@@ -203,10 +199,10 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
           </div>
         )}
         {(homeWinProb != null || spread != null) && (
-          <div className="flex flex-col items-center justify-center gap-2 text-zinc-100">
+          <div className="flex flex-col items-center justify-center gap-2 text-foreground">
             {homeWinProb != null && (
               <>
-                <p className="text-xs text-zinc-400">{game.homeTeam} win probability</p>
+                <p className="text-xs text-muted-foreground">{game.homeTeam} win probability</p>
                 <WinPercentage
                   logoUrl=""
                   percentage={(Number(homeWinProb) * 100).toFixed(2)}
@@ -221,20 +217,20 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
               </h4>
             )}
             {overUnder != null && (
-              <p className="text-sm text-zinc-400">O/U {overUnder}</p>
+              <p className="text-sm text-muted-foreground">O/U {overUnder}</p>
             )}
           </div>
         )}
       </div>
 
       {mediaOutlets.length > 0 && (
-        <p className="text-sm text-zinc-300 text-center">
+        <p className="text-sm text-foreground/80 text-center">
           Watch on: {mediaOutlets.join(", ")}
         </p>
       )}
 
       {weather && !weather.gameIndoors && (
-        <div className="rounded-md border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-sm text-zinc-300 text-center">
+        <div className="rounded-md border border-border bg-muted/50 px-4 py-3 text-sm text-foreground/80 text-center">
           {weather.condition?.description ?? "Weather forecast"}
           {weather.temperature != null && ` · ${weather.temperature}°F`}
           {weather.windSpeed != null && ` · Wind ${weather.windSpeed} mph`}
@@ -243,19 +239,19 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
       )}
 
       {preview.matchup && (
-        <div className="rounded-md border border-zinc-700 bg-zinc-800/50 px-4 py-3">
-          <h5 className="text-sm font-medium text-zinc-300 mb-2 text-center">Series History</h5>
-          <p className="text-center text-zinc-100">
+        <div className="rounded-md border border-border bg-muted/50 px-4 py-3">
+          <h5 className="text-sm font-medium text-foreground/80 mb-2 text-center">Series History</h5>
+          <p className="text-center text-foreground">
             {preview.matchup.team1} {preview.matchup.team1Wins} – {preview.matchup.team2Wins} {preview.matchup.team2}
             {preview.matchup.ties > 0 ? ` (${preview.matchup.ties} ties)` : ""}
           </p>
           {preview.matchup.sinceSeason != null && (
-            <p className="text-center text-xs text-zinc-500 mt-1">
+            <p className="text-center text-xs text-muted-foreground mt-1">
               Series since {preview.matchup.sinceSeason} (not all-time)
             </p>
           )}
           {preview.matchup.games?.length > 0 && (
-            <ul className="mt-2 text-xs text-zinc-400 space-y-1 max-h-32 overflow-y-auto">
+            <ul className="mt-2 text-xs text-muted-foreground space-y-1 max-h-32 overflow-y-auto">
               {[...preview.matchup.games].slice(0, 10).map((g, i) => (
                 <li key={i} className="text-center">
                   {g.season}: {g.awayTeam} {g.awayScore ?? "—"} @ {g.homeTeam} {g.homeScore ?? "—"}
@@ -268,25 +264,25 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
 
       {boxScoreDatasets.length > 0 && boxScoreLabels.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-zinc-300 text-center">Team Stats</h3>
+          <h3 className="text-sm font-medium text-foreground/80 text-center">Team Stats</h3>
           <BarChart labels={boxScoreLabels} datasets={boxScoreDatasets} />
         </div>
       )}
 
       {detail?.playerStats?.[0]?.teams?.map((teamGroup, idx) => (
         <div key={idx} className="space-y-2">
-          <h3 className="text-sm font-medium text-zinc-300">{teamGroup.team} Box Score Leaders</h3>
+          <h3 className="text-sm font-medium text-foreground/80">{teamGroup.team} Box Score Leaders</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             {teamGroup.categories?.flatMap((cat) =>
               cat.types?.flatMap((type) =>
                 (type.athletes ?? []).slice(0, 1).map((a) => (
                   <div
                     key={`${cat.name}-${type.name}-${a.id}`}
-                    className="rounded border border-zinc-700 bg-zinc-800 px-3 py-2"
+                    className="rounded border border-border bg-card px-3 py-2"
                   >
-                    <span className="text-zinc-400">{type.name}: </span>
-                    <span className="text-zinc-100">{a.name}</span>
-                    <span className="text-zinc-500 ml-2">{a.stat}</span>
+                    <span className="text-muted-foreground">{type.name}: </span>
+                    <span className="text-foreground">{a.name}</span>
+                    <span className="text-muted-foreground ml-2">{a.stat}</span>
                   </div>
                 ))
               )
@@ -299,7 +295,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {leadersByTeam.map((item, idx) => (
             <div key={idx}>
-              <h5 className="text-center text-zinc-100 mb-3">{item.team} Key Players</h5>
+              <h5 className="text-center text-foreground mb-3">{item.team} Key Players</h5>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {item.statLeaders?.map((playerStats, i) => (
                   <PlayerCard
@@ -316,32 +312,34 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
 
       {drives.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-zinc-300">Drives</h3>
+          <h3 className="text-sm font-medium text-foreground/80">Drives</h3>
           <div className="space-y-1 max-h-64 overflow-y-auto">
             {drives.map((d) => (
               <div
                 key={d.id}
-                className="rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-zinc-300"
+                className="rounded border border-border bg-card px-3 py-2 text-xs text-foreground/80 flex flex-wrap items-center gap-2"
               >
-                <span className="text-zinc-100">{d.offense}</span> vs {d.defense} —{" "}
-                {d.yards} yds, {d.plays} plays
-                {d.scoring ? " · SCORE" : ""}
+                <span>
+                  <span className="text-foreground">{d.offense}</span> vs {d.defense} —{" "}
+                  {d.yards} yds, {d.plays} plays
+                </span>
+                {d.scoring ? <Badge variant="secondary">SCORE</Badge> : null}
               </div>
             ))}
           </div>
           {plays.length > 0 && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setShowPlays((v) => !v)}
-              className="text-sm text-zinc-400 hover:text-zinc-200"
             >
               {showPlays ? "Hide" : "Show"} play-by-play ({plays.length})
-            </button>
-          )}
-          {showPlays && (
+            </Button>
+          )}          {showPlays && (
             <div className="space-y-1 max-h-96 overflow-y-auto mt-2">
               {plays.slice(0, 100).map((p) => (
-                <div key={p.id} className="text-xs text-zinc-400 border-b border-zinc-800 py-1">
+                <div key={p.id} className="text-xs text-muted-foreground border-b border-border py-1">
                   Q{p.period} {p.clock?.minutes}:{String(p.clock?.seconds ?? 0).padStart(2, "0")} —{" "}
                   {p.playText}
                 </div>

@@ -26,9 +26,9 @@ export function LineScoreTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm text-zinc-300">
+      <table className="w-full text-sm text-foreground/80">
         <thead>
-          <tr className="border-b border-zinc-700">
+          <tr className="border-b border-border">
             <th className="py-2 text-left font-medium">Team</th>
             {Array.from({ length: maxPeriods }, (_, i) => (
               <th key={i} className="py-2 px-2 text-center font-medium">
@@ -39,7 +39,7 @@ export function LineScoreTable({
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-zinc-800">
+          <tr className="border-b border-border">
             <td className="py-2 font-medium">{awayTeam}</td>
             {Array.from({ length: maxPeriods }, (_, i) => (
               <td key={i} className="py-2 px-2 text-center">

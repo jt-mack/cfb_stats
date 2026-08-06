@@ -8,6 +8,7 @@ import type {
 } from './espn-types';
 import { teamIndex } from './team-index';
 import type { Game, Venue } from './types';
+import { normalizeVenue } from '../utils/format';
 
 const REGULAR_WEEKS = 15;
 const POSTSEASON_WEEKS = 4;
@@ -115,18 +116,7 @@ export function mapScheduleEvent(event: Record<string, unknown>, season: number)
   const status = comp?.status as { type?: { completed?: boolean; description?: string } } | undefined;
   const weekObj = event.week as { number?: number } | undefined;
   const venueNormalized = event?.venue as Record<string, unknown> | undefined;
-  const venue: Venue | null = venueNormalized ? {
-    id: num(venueNormalized?.id) ?? 0,
-    name: venueNormalized?.name as string ?? '',
-    address: {
-      city: (venueNormalized?.address as { city?: string })?.city ?? '',
-      state: (venueNormalized?.address as { state?: string })?.state ?? '',
-    },
-    images: venueNormalized?.images as { href: string, alt?: string }[] | undefined ?? [],
-    image: (venueNormalized?.images as { href: string, alt?: string }[] | undefined)?.find((i: { href: string, alt?: string }) => typeof i === 'object' && 'href' in i)?.href as string | undefined,
-    indoor: Boolean(venueNormalized?.indoor),
-    grass: Boolean(venueNormalized?.grass),
-  } : null;
+  const venue = venueNormalized ? normalizeVenue(venueNormalized) : undefined;
   return {
     id: num(event.id) ?? 0,
     season,

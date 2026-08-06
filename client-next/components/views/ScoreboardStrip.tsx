@@ -38,7 +38,7 @@ export function ScoreboardStrip({
   if (!games.length) {
     if (phase === "preseason" && seasonContext?.firstGameDate) {
       return (
-        <div className="mb-4 rounded-md border border-zinc-700 bg-zinc-800/50 px-3 py-2 text-sm text-zinc-300 text-center">
+        <div className="mb-4 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-foreground/80 text-center">
           Season starts soon — Week 1 games will appear here.
         </div>
       );
@@ -49,13 +49,13 @@ export function ScoreboardStrip({
   return (
     <div className="mb-4 space-y-2">
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-sm font-medium text-zinc-300">
+        <h3 className="text-sm font-medium text-foreground/80">
           {scoreboardStripTitle(phase, currentWeek, isCurrentSeason)}
         </h3>
         {currentWeek != null && (
           <Link
             href={`/season/${year}/week/${currentWeek}`}
-            className="text-xs text-zinc-500 hover:text-zinc-300"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             View all →
           </Link>
@@ -66,11 +66,11 @@ export function ScoreboardStrip({
           <Link
             key={g.id}
             href={`/season/${year}/game/${g.id}`}
-            className="shrink-0 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 min-w-[140px] hover:bg-zinc-700"
+            className="shrink-0 rounded-md border border-border bg-card px-3 py-2 min-w-[140px] hover:bg-accent"
           >
-            <p className="text-xs text-zinc-400 truncate">{g.awayTeam}</p>
-            <p className="text-xs text-zinc-100 font-medium truncate">{g.homeTeam}</p>
-            <p className="text-sm text-zinc-200 mt-1">
+            <p className="text-xs text-muted-foreground truncate">{g.awayTeam}</p>
+            <p className="text-xs text-foreground font-medium truncate">{g.homeTeam}</p>
+            <p className="text-sm text-foreground mt-1">
               {g.awayPoints != null && g.homePoints != null
                 ? `${g.awayPoints} – ${g.homePoints}`
                 : g.startDate

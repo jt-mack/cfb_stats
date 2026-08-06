@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useLeaders } from "@/lib/hooks/queries";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export default function StatsPageClient() {
   const { year, seasonNum, isValidSeason } = useSeasonParams();
@@ -29,8 +30,8 @@ export default function StatsPageClient() {
   return (
     <div className="space-y-4 min-w-0">
       <div className="text-center space-y-1">
-        <h1 className="text-xl font-semibold text-zinc-100">National Leaders</h1>
-        <p className="text-sm text-zinc-400">
+        <h1 className="text-xl font-semibold text-foreground">National Leaders</h1>
+        <p className="text-sm text-muted-foreground">
           {dataSeason && dataSeason !== seasonNum
             ? `Showing ${dataSeason} leaders (current season not yet populated).`
             : `${year} statistical leaders.`}
@@ -38,22 +39,23 @@ export default function StatsPageClient() {
       </div>
 
       {categories.length > 0 && (
-        <div className="flex flex-wrap gap-2 justify-center">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          spacing={1}
+          value={active}
+          onValueChange={(v) => {
+            if (v) setCategory(v);
+          }}
+          className="flex flex-wrap justify-center w-full max-w-full"
+        >
           {categories.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCategory(c)}
-              className={`text-xs px-2 py-1 rounded border ${
-                active === c
-                  ? "border-zinc-400 bg-zinc-700 text-zinc-100"
-                  : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
-              }`}
-            >
+            <ToggleGroupItem key={c} value={c} className="text-xs">
               {c}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       )}
 
       {isLoading ? (
@@ -61,36 +63,36 @@ export default function StatsPageClient() {
       ) : isError ? (
         <PageError message="Failed to load leaders." />
       ) : !leaders.length ? (
-        <p className="text-center text-zinc-400 py-8">
+        <p className="text-center text-muted-foreground py-8">
           Leaders are not available for this season yet.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-zinc-700">
+        <div className="overflow-x-auto rounded-md border border-border">
           <Table>
             <TableHeader>
-              <TableRow className="border-zinc-700">
-                <TableHead className="text-zinc-400">#</TableHead>
-                <TableHead className="text-zinc-400">Player</TableHead>
-                <TableHead className="text-zinc-400">Team</TableHead>
-                <TableHead className="text-zinc-400">Pos</TableHead>
-                <TableHead className="text-zinc-400 text-right">Stat</TableHead>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Player</TableHead>
+                <TableHead>Team</TableHead>
+                <TableHead>Pos</TableHead>
+                <TableHead className="text-right">Stat</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {leaders.map((l) => (
-                <TableRow key={`${l.playerId}-${l.category}`} className="border-zinc-800">
-                  <TableCell className="text-zinc-300">{l.rank}</TableCell>
-                  <TableCell className="text-zinc-100">{l.player}</TableCell>
+                <TableRow key={`${l.playerId}-${l.category}`}>
+                  <TableCell className="text-foreground/80">{l.rank}</TableCell>
+                  <TableCell>{l.player}</TableCell>
                   <TableCell>
                     <Link
                       href={`/season/${year}/team/${l.teamId}`}
-                      className="text-zinc-300 hover:text-zinc-100 underline-offset-2 hover:underline"
+                      className="text-foreground/80 hover:text-foreground underline-offset-2 hover:underline"
                     >
                       {l.team}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-zinc-400">{l.position ?? "—"}</TableCell>
-                  <TableCell className="text-right text-zinc-100">{l.displayValue}</TableCell>
+                  <TableCell className="text-muted-foreground">{l.position ?? "—"}</TableCell>
+                  <TableCell className="text-right">{l.displayValue}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

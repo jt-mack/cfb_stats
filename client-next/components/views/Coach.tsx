@@ -13,7 +13,7 @@ import {
 import type { Coach, CoachSeason } from "@/lib/types";
 import { Calendar, Trophy } from "lucide-react";
 import { useCoaches } from "@/lib/hooks/queries";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
 
 type CoachProps = {
   teamId: string;
@@ -40,7 +40,7 @@ export function Coach({ teamId, season }: CoachProps) {
     return <PageError message={error instanceof Error ? error.message : "Failed to load coach."} />;
   }
   if (!coaches.length) {
-    return <p className="py-8 text-center text-zinc-400">No coach data available for this season.</p>;
+    return <p className="py-8 text-center text-muted-foreground">No coach data available for this season.</p>;
   }
 
   const primary = coaches[0];
@@ -48,11 +48,11 @@ export function Coach({ teamId, season }: CoachProps) {
 
   return (
     <div className="space-y-4">
-      <Card className="border-zinc-700 bg-zinc-800">
+      <Card className="border-border bg-card">
         <CardHeader className="pb-2">
-          <h3 className="text-lg font-semibold text-zinc-100">{coachName(primary)}</h3>
+          <h3 className="text-lg font-semibold text-foreground">{coachName(primary)}</h3>
           {primary.hireDate && (
-            <p className="text-sm text-zinc-400 flex items-center gap-1">
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               {/^\d{4}$/.test(primary.hireDate)
                 ? `First season ${primary.hireDate}`
@@ -61,12 +61,12 @@ export function Coach({ teamId, season }: CoachProps) {
             </p>
           )}
         </CardHeader>
-        <CardContent className="space-y-1 text-sm text-zinc-300">
+        <CardContent className="space-y-1 text-sm text-foreground/80">
           {primary.schoolRecordSummary && (
             <p>Record at school: {primary.schoolRecordSummary}</p>
           )}
           {primary.careerRecordSummary && (
-            <p className="text-zinc-400">Career overall: {primary.careerRecordSummary}</p>
+            <p className="text-muted-foreground">Career overall: {primary.careerRecordSummary}</p>
           )}
           {currentSeason && (
             <p>
@@ -81,9 +81,9 @@ export function Coach({ teamId, season }: CoachProps) {
       </Card>
 
       {primary.seasons && primary.seasons.length > 0 && (
-        <Card className="border-zinc-700 bg-zinc-800">
+        <Card className="border-border bg-card">
           <CardHeader className="pb-2">
-            <h4 className="text-sm font-medium text-zinc-300 flex items-center gap-1">
+            <h4 className="text-sm font-medium text-foreground/80 flex items-center gap-1">
               <Trophy className="h-4 w-4" />
               Coaching History
             </h4>
@@ -91,27 +91,27 @@ export function Coach({ teamId, season }: CoachProps) {
           <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-zinc-700">
-                  <TableHead className="text-zinc-400">Year</TableHead>
-                  <TableHead className="text-zinc-400">School</TableHead>
-                  <TableHead className="text-zinc-400">Record</TableHead>
+                <TableRow className="border-border">
+                  <TableHead className="text-muted-foreground">Year</TableHead>
+                  <TableHead className="text-muted-foreground">School</TableHead>
+                  <TableHead className="text-muted-foreground">Record</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {[...primary.seasons]
                   .sort((a, b) => b.year - a.year)
                   .map((s: CoachSeason) => (
-                    <TableRow key={`${s.school}-${s.year}`} className="border-zinc-700">
-                      <TableCell className="text-zinc-200">{s.year}</TableCell>
+                    <TableRow key={`${s.school}-${s.year}`} className="border-border">
+                      <TableCell className="text-foreground">{s.year}</TableCell>
                       <TableCell>
                         <Link
                           href={`/season/${s.year}/team/${encodeURIComponent(s.school)}`}
-                          className="text-zinc-200 hover:text-zinc-100 underline-offset-2 hover:underline"
+                          className="text-foreground hover:text-foreground underline-offset-2 hover:underline"
                         >
                           {s.school}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-zinc-300">
+                      <TableCell className="text-foreground/80">
                         {s.wins}-{s.losses}
                         {s.ties ? `-${s.ties}` : ""}
                       </TableCell>

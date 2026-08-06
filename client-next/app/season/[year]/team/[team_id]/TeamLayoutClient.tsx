@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
 import type { Conference, GameWithOdds, TeamRecords } from "@/lib/types";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
@@ -16,10 +15,11 @@ import {
 } from "@/lib/hooks/queries";
 import { TeamCard } from "@/components/cards/TeamCard";
 import { TeamDetails } from "@/components/views/TeamDetails";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
-import { PreseasonBanner } from "@/components/ui/LineScoreTable";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { PreseasonBanner } from "@/components/tables/LineScoreTable";
 import { formatSeasonDate } from "@/lib/seasonHelpers";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TEAM_TABS, TeamPageProvider, type TeamTabSlug } from "./TeamPageContext";
 import { useActiveSeason } from "@/context/GlobalStateContext";
 import { isFeatureEnabled } from "@/lib/activeSeasonFeatures";
@@ -58,6 +58,7 @@ type TeamLayoutClientProps = {
 
 export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { year, teamId, seasonNum, isValidSeason } = useSeasonParams();
   const { getFavorite, toggleFavorite } = useFavorites();
 
@@ -156,41 +157,46 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
         atsChip={atsChip}
       >
         <TeamDetails team={team} conferenceName={conference?.name} />
-        <nav
-          aria-label="Team sections"
-          className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0.5 sm:gap-1 rounded-lg p-1"
-          style={{
-            backgroundColor: withAlpha(primary, 0.12),
-            border: `1px solid ${withAlpha(primary, 0.35)}`,
-          }}
+        <Tabs
+          value={activeTab}
+          onValueChange={(slug) => router.push(`${basePath}/${slug}`)}
+          className="w-full gap-0"
         >
-          {visibleTabs.map((tab) => {
-            const isActive = activeTab === tab.slug;
-            return (
-              <Link
-                key={tab.slug}
-                href={`${basePath}/${tab.slug}`}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "inline-flex flex-1 items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors",
-                  tab.wideOnMobile && "col-span-2 sm:col-span-1",
-                  !isActive && "text-zinc-300 hover:text-zinc-100"
-                )}
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: primary,
-                        color: "var(--team-on-primary)",
-                        boxShadow: `0 1px 2px ${withAlpha(primary, 0.4)}`,
-                      }
-                    : undefined
-                }
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </nav>
+          <TabsList
+            aria-label="Team sections"
+            className="grid w-full h-auto grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0.5 sm:gap-1 p-1"
+            style={{
+              backgroundColor: withAlpha(primary, 0.12),
+              border: `1px solid ${withAlpha(primary, 0.35)}`,
+            }}
+          >
+            {visibleTabs.map((tab) => {
+              const isActive = activeTab === tab.slug;
+              return (
+                <TabsTrigger
+                  key={tab.slug}
+                  value={tab.slug}
+                  className={cn(
+                    "text-xs sm:text-sm data-[state=active]:shadow-sm",
+                    tab.wideOnMobile && "col-span-2 sm:col-span-1",
+                    !isActive && "text-foreground/80 hover:text-foreground"
+                  )}
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: primary,
+                          color: "var(--team-on-primary)",
+                          boxShadow: `0 1px 2px ${withAlpha(primary, 0.4)}`,
+                        }
+                      : undefined
+                  }
+                >
+                  {tab.label}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
         <TeamPageProvider
           value={{
             year,

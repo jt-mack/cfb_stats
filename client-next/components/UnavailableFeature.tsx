@@ -7,7 +7,7 @@ type UnavailableFeatureProps = {
 
 export function UnavailableFeature({
   message,
-  className = "py-8 text-center text-zinc-400",
+  className = "py-8 text-center text-muted-foreground",
 }: UnavailableFeatureProps) {
   return <p className={className}>{message}</p>;
 }

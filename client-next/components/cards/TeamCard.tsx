@@ -45,7 +45,7 @@ export function TeamCard({
   const onPrimary = contrastText(primary);
 
   return (
-    <Card className="mb-4 border-0 overflow-hidden bg-zinc-800 text-zinc-100 shadow-lg">
+    <Card className="mb-4 border-0 overflow-hidden bg-card text-card-foreground shadow-lg">
       <CardHeader
         className="py-3 px-3 sm:px-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 flex-wrap border-b"
         style={{
@@ -103,7 +103,7 @@ export function TeamCard({
                 Team Links
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="border-zinc-700 bg-zinc-800 text-zinc-100" align="end">
+            <DropdownMenuContent align="end">
               {links.map((link, i) => (
                 <DropdownMenuItem key={i} asChild>
                   <a href={link.href} target="_blank" rel="noopener noreferrer">
@@ -143,7 +143,7 @@ export function TeamCard({
         </div>
       </CardHeader>
       <CardContent
-        className="pt-2 px-3 sm:px-6 bg-zinc-800 text-zinc-100 overflow-x-hidden"
+        className="pt-2 px-3 sm:px-6 bg-card text-card-foreground overflow-x-hidden"
         style={{ boxShadow: `inset 0 3px 0 ${withAlpha(primary, 0.45)}` }}
       >
         {conferenceLogo ? (

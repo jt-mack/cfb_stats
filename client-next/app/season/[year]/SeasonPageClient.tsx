@@ -9,10 +9,11 @@ import { useTeams, useSeasonContext, useConferences } from "@/lib/hooks/queries"
 import { filterMainConferences } from "@/lib/helpers/conferences";
 import { formatSeasonDate } from "@/lib/seasonHelpers";
 import { ScoreboardStrip } from "@/components/views/ScoreboardStrip";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
-import { PreseasonBanner } from "@/components/ui/LineScoreTable";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { PreseasonBanner } from "@/components/tables/LineScoreTable";
 import { useActiveSeason } from "@/context/GlobalStateContext";
 import { isFeatureEnabled } from "@/lib/activeSeasonFeatures";
+import { Button } from "@/components/ui/button";
 
 function mapTeamToRow(team: FbsTeamWithRank) {
   return {
@@ -75,25 +76,19 @@ export default function SeasonPageClient() {
           { href: `/season/${year}/stats`, label: "Statistics" },
           ...(showNewsLink ? [{ href: `/season/${year}/news`, label: "News" }] : []),
         ].map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className="text-xs px-2 py-1 rounded border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
-          >
-            {l.label}
-          </Link>
+          <Button key={l.href} variant="outline" size="xs" asChild>
+            <Link href={l.href}>{l.label}</Link>
+          </Button>
         ))}
       </div>
       {mainConferences.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-2 justify-center px-1">
           {mainConferences.map((c) => (
-            <Link
-              key={c.id}
-              href={`/season/${year}/conference/${c.id}`}
-              className="text-xs px-2 py-1 rounded border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
-            >
-              {c.abbreviation ?? c.shortName ?? c.name}
-            </Link>
+            <Button key={c.id} variant="outline" size="xs" asChild>
+              <Link href={`/season/${year}/conference/${c.id}`}>
+                {c.abbreviation ?? c.shortName ?? c.name}
+              </Link>
+            </Button>
           ))}
         </div>
       )}

@@ -18,6 +18,6 @@ export function PageSpinner({ heightClass = "h-[60vh]", color }: PageSpinnerProp
 
 export function PageError({ message }: { message: string }) {
   return (
-    <div className="py-8 text-center text-red-400">{message}</div>
+    <div className="py-8 text-center text-destructive">{message}</div>
   );
 }

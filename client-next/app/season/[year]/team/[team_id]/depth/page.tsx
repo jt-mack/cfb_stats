@@ -5,8 +5,8 @@ import { useTeamPage } from "../TeamPageContext";
 import { useDepthChart } from "@/lib/hooks/queries";
 import { useActiveSeason } from "@/context/GlobalStateContext";
 import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
-import { UnavailableFeature } from "@/components/ui/UnavailableFeature";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { UnavailableFeature } from "@/components/UnavailableFeature";
 
 export default function TeamDepthPage() {
   const { year, team } = useTeamPage();
@@ -36,7 +36,7 @@ export default function TeamDepthPage() {
   if (isError) return <PageError message="Failed to load depth chart." />;
   if (!data?.available) {
     return (
-      <p className="py-8 text-center text-zinc-400">
+      <p className="py-8 text-center text-muted-foreground">
         Depth chart is not available for this team right now.
       </p>
     );
@@ -46,17 +46,17 @@ export default function TeamDepthPage() {
     <div className="space-y-6">
       {[...byUnit.entries()].map(([unit, players]) => (
         <div key={unit}>
-          <h3 className="text-sm font-medium text-zinc-300 mb-2">{unit}</h3>
+          <h3 className="text-sm font-medium text-foreground/80 mb-2">{unit}</h3>
           <ul className="space-y-1 text-sm">
             {players
               .slice()
               .sort((a, b) => a.position.localeCompare(b.position) || a.rank - b.rank)
               .map((p) => (
-                <li key={`${p.athleteId}-${p.position}-${p.rank}`} className="text-zinc-200">
-                  <span className="text-zinc-500 w-8 inline-block">#{p.rank}</span>
+                <li key={`${p.athleteId}-${p.position}-${p.rank}`} className="text-foreground">
+                  <span className="text-muted-foreground w-8 inline-block">#{p.rank}</span>
                   {p.jersey ? `#${p.jersey} ` : ""}
                   {p.name}{" "}
-                  <span className="text-zinc-400">({p.position})</span>
+                  <span className="text-muted-foreground">({p.position})</span>
                 </li>
               ))}
           </ul>

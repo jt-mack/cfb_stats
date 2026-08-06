@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useCalendar, useSeasonContext, useWeekGames } from "@/lib/hooks/queries";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 type StatusFilter = "all" | "completed" | "live" | "upcoming";
 
@@ -49,52 +57,63 @@ export default function ScoresPageClient() {
   if (!year || !isValidSeason) return <PageError message="Invalid route." />;
   if (calLoading) return <PageSpinner heightClass="h-[40vh]" />;
 
+  const weekOptions =
+    calendar.length > 0
+      ? calendar.map((w) => ({
+          value: String(w.week),
+          label: `${w.seasonType === "postseason" ? "Post" : "Week"} ${w.week}`,
+        }))
+      : Array.from({ length: 15 }, (_, i) => i + 1).map((w) => ({
+          value: String(w),
+          label: `Week ${w}`,
+        }));
+
   return (
     <div className="space-y-4 min-w-0">
       <div className="text-center space-y-2">
-        <h1 className="text-xl font-semibold text-zinc-100">{year} Scores</h1>
-        <p className="text-sm text-zinc-400">Browse games by week and season type.</p>
+        <h1 className="text-xl font-semibold text-foreground">{year} Scores</h1>
+        <p className="text-sm text-muted-foreground">Browse games by week and season type.</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 justify-center">
-        <label className="text-sm text-zinc-400">
-          Week{" "}
-          <select
-            className="ml-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100"
-            value={selectedWeek}
-            onChange={(e) => setWeek(Number(e.target.value))}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Week</span>
+          <Select
+            value={String(selectedWeek)}
+            onValueChange={(v) => setWeek(Number(v))}
           >
-            {calendar.length > 0 ? (
-              calendar.map((w) => (
-                <option key={`${w.seasonType}-${w.week}`} value={w.week}>
-                  {w.seasonType === "postseason" ? "Post" : "Week"} {w.week}
-                </option>
-              ))
-            ) : (
-              Array.from({ length: 15 }, (_, i) => i + 1).map((w) => (
-                <option key={w} value={w}>
-                  Week {w}
-                </option>
-              ))
-            )}
-          </select>
-        </label>
-        <label className="text-sm text-zinc-400">
-          Status{" "}
-          <select
-            className="ml-1 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100"
+            <SelectTrigger className="w-[140px]" aria-label="Select week">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {weekOptions.map((w) => (
+                <SelectItem key={w.value} value={w.value}>
+                  {w.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Status</span>
+          <Select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            onValueChange={(v) => setStatusFilter(v as StatusFilter)}
           >
-            <option value="all">All</option>
-            <option value="completed">Completed</option>
-            <option value="live">Live</option>
-            <option value="upcoming">Upcoming</option>
-          </select>
-        </label>
-        <Link href={`/season/${year}/week/${selectedWeek}`} className="text-sm text-zinc-500 hover:text-zinc-300">
-          Week page →
-        </Link>
+            <SelectTrigger className="w-[140px]" aria-label="Filter by status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="live">Live</SelectItem>
+              <SelectItem value="upcoming">Upcoming</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="link" size="sm" asChild>
+          <Link href={`/season/${year}/week/${selectedWeek}`}>Week page →</Link>
+        </Button>
       </div>
 
       {isLoading ? (
@@ -105,27 +124,28 @@ export default function ScoresPageClient() {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.map((g) => (
-              <button
+              <Button
                 key={g.id}
                 type="button"
+                variant="outline"
                 onClick={() => router.push(`/season/${year}/game/${g.id}`)}
-                className="rounded-md border border-zinc-700 bg-zinc-800 px-4 py-3 text-left hover:bg-zinc-700"
+                className="h-auto flex-col items-start gap-1 px-4 py-3 whitespace-normal"
               >
-                <p className="text-sm text-zinc-100">
+                <span className="text-sm text-foreground">
                   {g.awayTeam} @ {g.homeTeam}
-                </p>
-                <p className="text-xs text-zinc-400 mt-1">
+                </span>
+                <span className="text-xs text-muted-foreground font-normal">
                   {g.completed
                     ? `Final: ${g.awayPoints} – ${g.homePoints}`
                     : g.startDate
                       ? new Date(g.startDate).toLocaleString("en-US")
                       : "TBD"}
-                </p>
-              </button>
+                </span>
+              </Button>
             ))}
           </div>
           {!filtered.length && (
-            <p className="text-center text-zinc-400">No games found for this filter.</p>
+            <p className="text-center text-muted-foreground">No games found for this filter.</p>
           )}
         </>
       )}

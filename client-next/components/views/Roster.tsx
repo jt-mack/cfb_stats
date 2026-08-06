@@ -16,8 +16,8 @@ import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
 import { useRoster } from "@/lib/hooks/queries";
 import { useActiveSeason } from "@/context/GlobalStateContext";
 import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
-import { UnavailableFeature } from "@/components/ui/UnavailableFeature";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { UnavailableFeature } from "@/components/UnavailableFeature";
 
 function fullName(p: RosterPlayer): string {
   return [p.firstName, p.lastName].filter(Boolean).join(" ") || p.id;
@@ -76,7 +76,7 @@ export function Roster({ teamId, season }: RosterProps) {
             variant={sortMode === "number" ? "default" : "outline"}
             size="sm"
             onClick={() => setSortMode("number")}
-            className="border-zinc-600 text-xs sm:text-sm min-h-9"
+            className="border-input text-xs sm:text-sm min-h-9"
           >
             <ArrowDownNarrowWide className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
             Number
@@ -85,17 +85,17 @@ export function Roster({ teamId, season }: RosterProps) {
             variant={sortMode === "name" ? "default" : "outline"}
             size="sm"
             onClick={() => setSortMode("name")}
-            className="border-zinc-600 text-xs sm:text-sm min-h-9"
+            className="border-input text-xs sm:text-sm min-h-9"
           >
             <ArrowDownWideNarrow className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
             Name
           </Button>
         </div>
         <Select value={positionFilter} onValueChange={setPositionFilter}>
-          <SelectTrigger className="w-full sm:w-[180px] border-zinc-600 bg-zinc-800 text-zinc-100 min-h-9">
+          <SelectTrigger className="w-full sm:w-[180px] border-input bg-card text-foreground min-h-9">
             <SelectValue placeholder="All Positions" />
           </SelectTrigger>
-          <SelectContent className="border-zinc-700 bg-zinc-800 text-zinc-100">
+          <SelectContent className="border-border bg-card text-foreground">
             <SelectItem value="all">All Positions</SelectItem>
             {positionOptions.map((pos) => (
               <SelectItem key={pos} value={pos}>
@@ -108,22 +108,22 @@ export function Roster({ teamId, season }: RosterProps) {
       {sortedAndFiltered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sortedAndFiltered.map((player) => (
-            <Card key={player.id} className="border-zinc-700 bg-zinc-800 overflow-hidden">
+            <Card key={player.id} className="border-border bg-card overflow-hidden">
               <CardContent className="p-4 flex gap-3">
-                <div className="shrink-0 w-14 h-14 rounded bg-zinc-700 flex items-center justify-center text-zinc-100 font-medium">
+                <div className="shrink-0 w-14 h-14 rounded bg-muted flex items-center justify-center text-foreground font-medium">
                   #{player.jersey ?? "—"}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-zinc-100 truncate">{fullName(player)}</p>
-                  <p className="text-sm text-zinc-400">
+                  <p className="font-semibold text-foreground truncate">{fullName(player)}</p>
+                  <p className="text-sm text-muted-foreground">
                     #{player.jersey ?? "—"} • {player.position ?? "—"}
                   </p>
-                  <p className="text-xs text-zinc-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {formatHeightInches(player.height)} •{" "}
                     {player.weight != null ? `${player.weight} lbs` : "—"}
                   </p>
                   {player.year != null && (
-                    <p className="text-xs text-zinc-500">Year: {player.year}</p>
+                    <p className="text-xs text-muted-foreground">Year: {player.year}</p>
                   )}
                 </div>
               </CardContent>
@@ -131,7 +131,7 @@ export function Roster({ teamId, season }: RosterProps) {
           ))}
         </div>
       ) : (
-        <p className="text-center text-zinc-400 py-4">No roster data available.</p>
+        <p className="text-center text-muted-foreground py-4">No roster data available.</p>
       )}
     </div>
   );

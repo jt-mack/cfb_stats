@@ -92,9 +92,8 @@ export function mapSummaryToGameDetail(summary: SdvCfbSummary): GameDetail {
   const season = (summary.season as { year?: number })?.year ?? 0;
   const week = (summary.week as { number?: number })?.number ?? 0;
   const gameInfo = summary.gameInfo as Record<string, unknown> | undefined;
-  const venueNormalized = gameInfo?.venue as Record<string, unknown> | undefined;
+  const venue = gameInfo?.venue as Record<string, unknown> | undefined;
 
-  const venue = venueNormalized ? normalizeVenue(venueNormalized) : undefined;
   const game = mapScheduleEvent(
     { id: gameId, venue: venue as Venue | undefined, date: comp?.date, week: { number: week }, competitions: [comp] },
     season
@@ -186,12 +185,12 @@ export function mapSummaryToGameDetail(summary: SdvCfbSummary): GameDetail {
     gameInfo: {
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
-      venue: venue,
+      venue: venue ? normalizeVenue(venue) : undefined,
     },
     teams: boxScore?.teams as Record<string, unknown> | undefined,
   };
 
-  return { game, teamStats, playerStats, advancedBoxScore, venue };
+  return { game, teamStats, playerStats, advancedBoxScore, venue: venue ? normalizeVenue(venue) : undefined };
 }
 
 export function mapPicksToOdds(picks: SdvCfbPicks, game: Game): {

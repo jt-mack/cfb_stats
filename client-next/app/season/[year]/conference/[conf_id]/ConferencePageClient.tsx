@@ -8,7 +8,8 @@ import { useConferences, useStandings, useConferenceTeams } from "@/lib/hooks/qu
 import { StandingsTable } from "@/components/tables/StandingsTable";
 import type { StandingsRow } from "@/components/tables/StandingsTable";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { Button } from "@/components/ui/button";
 
 export default function ConferencePageClient() {
   const router = useRouter();
@@ -45,24 +46,24 @@ export default function ConferencePageClient() {
   return (
     <div className="space-y-6 min-w-0">
       <div className="text-center">
-        <Link href={`/season/${year}`} className="text-sm text-zinc-500 hover:text-zinc-300">
-          ← Back to season
-        </Link>
-        <h1 className="text-xl font-semibold text-zinc-100 mt-2">{conf?.name ?? confId}</h1>
+        <Button variant="link" size="sm" asChild>
+          <Link href={`/season/${year}`}>← Back to season</Link>
+        </Button>
+        <h1 className="text-xl font-semibold text-foreground mt-2">{conf?.name ?? confId}</h1>
       </div>
       <StandingsTable standings={standings} season={year} />
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {confTeams.map((t) => (
           <Card
             key={t.id}
-            className="border-zinc-700 bg-zinc-800 cursor-pointer hover:bg-zinc-700"
+            className="cursor-pointer hover:bg-accent gap-0 py-0"
             onClick={() => router.push(`/season/${year}/team/${t.id}`)}
           >
             <CardContent className="p-3 flex items-center gap-2">
               {t.logos?.[0] && (
                 <Image src={t.logos[0]} alt="" width={32} height={32} className="object-contain" unoptimized />
               )}
-              <span className="text-sm text-zinc-100 truncate">
+              <span className="text-sm text-foreground truncate">
                 {t.mascot ? `${t.school} ${t.mascot}` : t.school}
               </span>
             </CardContent>

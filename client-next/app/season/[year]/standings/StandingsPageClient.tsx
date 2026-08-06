@@ -6,7 +6,16 @@ import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useConferences, useFbsStandings, useStandings, useTeams } from "@/lib/hooks/queries";
 import { StandingsTable } from "@/components/tables/StandingsTable";
 import type { StandingsRow } from "@/components/tables/StandingsTable";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 export default function StandingsPageClient() {
   const { year, seasonNum, isValidSeason } = useSeasonParams();
@@ -54,8 +63,8 @@ export default function StandingsPageClient() {
   return (
     <div className="space-y-4 min-w-0">
       <div className="text-center space-y-2">
-        <h1 className="text-xl font-semibold text-zinc-100">{year} Standings</h1>
-        <p className="text-sm text-zinc-400">
+        <h1 className="text-xl font-semibold text-foreground">{year} Standings</h1>
+        <p className="text-sm text-muted-foreground">
           {view === "fbs"
             ? "FBS record listing — not an official national ranking."
             : "Conference standings by overall and conference record."}
@@ -63,42 +72,36 @@ export default function StandingsPageClient() {
       </div>
 
       <div className="flex flex-wrap gap-3 justify-center items-center">
-        <div className="flex rounded-md border border-zinc-700 overflow-hidden">
-          <button
-            type="button"
-            className={`px-3 py-1.5 text-sm ${view === "conference" ? "bg-zinc-700 text-zinc-100" : "bg-zinc-900 text-zinc-400"}`}
-            onClick={() => setView("conference")}
-          >
-            Conference
-          </button>
-          <button
-            type="button"
-            className={`px-3 py-1.5 text-sm ${view === "fbs" ? "bg-zinc-700 text-zinc-100" : "bg-zinc-900 text-zinc-400"}`}
-            onClick={() => setView("fbs")}
-          >
-            FBS listing
-          </button>
-        </div>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={view}
+          onValueChange={(v) => {
+            if (v === "conference" || v === "fbs") setView(v);
+          }}
+        >
+          <ToggleGroupItem value="conference">Conference</ToggleGroupItem>
+          <ToggleGroupItem value="fbs">FBS listing</ToggleGroupItem>
+        </ToggleGroup>
         {view === "conference" && (
-          <select
-            className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm text-zinc-100"
-            value={confId}
-            onChange={(e) => setConfId(e.target.value)}
-          >
-            {fbsConfs.map((c) => (
-              <option key={c.id} value={String(c.id)}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <Select value={confId} onValueChange={setConfId}>
+            <SelectTrigger className="w-[200px]" aria-label="Select conference">
+              <SelectValue placeholder="Conference" />
+            </SelectTrigger>
+            <SelectContent>
+              {fbsConfs.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
         {view === "conference" && (
-          <Link
-            href={`/season/${year}/conference/${confId}`}
-            className="text-sm text-zinc-500 hover:text-zinc-300"
-          >
-            Conference page →
-          </Link>
+          <Button variant="link" size="sm" asChild>
+            <Link href={`/season/${year}/conference/${confId}`}>Conference page →</Link>
+          </Button>
         )}
       </div>
 

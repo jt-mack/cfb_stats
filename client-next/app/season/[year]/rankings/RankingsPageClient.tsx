@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useRankings } from "@/lib/hooks/queries";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export default function RankingsPageClient() {
   const { year, seasonNum, isValidSeason } = useSeasonParams();
@@ -31,17 +32,19 @@ export default function RankingsPageClient() {
   if (!polls.length) {
     return (
       <div className="text-center space-y-2 py-12">
-        <h1 className="text-xl font-semibold text-zinc-100">{year} Rankings</h1>
-        <p className="text-zinc-400">Rankings are not available yet for this season.</p>
+        <h1 className="text-xl font-semibold text-foreground">{year} Rankings</h1>
+        <p className="text-muted-foreground">Rankings are not available yet for this season.</p>
       </div>
     );
   }
 
+  const pollValue = polls[pollIndex]?.poll ?? polls[0]?.poll;
+
   return (
     <div className="space-y-4 min-w-0">
       <div className="text-center space-y-1">
-        <h1 className="text-xl font-semibold text-zinc-100">National Rankings</h1>
-        <p className="text-sm text-zinc-400">
+        <h1 className="text-xl font-semibold text-foreground">National Rankings</h1>
+        <p className="text-sm text-muted-foreground">
           {data?.season ?? year}
           {data?.headline ? ` · ${data.headline}` : data?.week ? ` · Week ${data.week}` : ""}
           {data?.season && data.season !== seasonNum
@@ -50,51 +53,55 @@ export default function RankingsPageClient() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center">
-        {polls.map((p, i) => (
-          <button
-            key={p.poll}
-            type="button"
-            onClick={() => setPollIndex(i)}
-            className={`text-xs px-2 py-1 rounded border ${
-              i === pollIndex
-                ? "border-zinc-400 bg-zinc-700 text-zinc-100"
-                : "border-zinc-700 text-zinc-400 hover:border-zinc-500"
-            }`}
-          >
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        spacing={1}
+        value={pollValue}
+        onValueChange={(v) => {
+          const idx = polls.findIndex((p) => p.poll === v);
+          if (idx >= 0) setPollIndex(idx);
+        }}
+        className="flex flex-wrap justify-center w-full max-w-full"
+      >
+        {polls.map((p) => (
+          <ToggleGroupItem key={p.poll} value={p.poll} className="text-xs">
             {p.poll}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
 
-      <div className="overflow-x-auto rounded-md border border-zinc-700">
+      <div className="overflow-x-auto rounded-md border border-border">
         <Table>
           <TableHeader>
-            <TableRow className="border-zinc-700">
-              <TableHead className="text-zinc-400">Rank</TableHead>
-              <TableHead className="text-zinc-400">Prev</TableHead>
-              <TableHead className="text-zinc-400">Team</TableHead>
-              <TableHead className="text-zinc-400">Record</TableHead>
-              <TableHead className="text-zinc-400 text-right">Points</TableHead>
-              <TableHead className="text-zinc-400 text-right">1st</TableHead>
+            <TableRow>
+              <TableHead>Rank</TableHead>
+              <TableHead>Prev</TableHead>
+              <TableHead>Team</TableHead>
+              <TableHead>Record</TableHead>
+              <TableHead className="text-right">Points</TableHead>
+              <TableHead className="text-right">1st</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {ranks.map((r) => (
-              <TableRow key={r.teamId} className="border-zinc-800">
-                <TableCell className="text-zinc-100 font-medium">{r.rank}</TableCell>
-                <TableCell className="text-zinc-400">{r.previous ?? "—"}</TableCell>
+              <TableRow key={r.teamId}>
+                <TableCell className="font-medium">{r.rank}</TableCell>
+                <TableCell className="text-muted-foreground">{r.previous ?? "—"}</TableCell>
                 <TableCell>
                   <Link
                     href={`/season/${year}/team/${r.teamId}`}
-                    className="text-zinc-100 hover:underline"
+                    className="hover:underline"
                   >
                     {r.school ?? `Team ${r.teamId}`}
                   </Link>
                 </TableCell>
-                <TableCell className="text-zinc-300">{r.record ?? "—"}</TableCell>
-                <TableCell className="text-right text-zinc-300">{r.points ?? "—"}</TableCell>
-                <TableCell className="text-right text-zinc-400">{r.firstPlaceVotes ?? "—"}</TableCell>
+                <TableCell className="text-foreground/80">{r.record ?? "—"}</TableCell>
+                <TableCell className="text-right text-foreground/80">{r.points ?? "—"}</TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {r.firstPlaceVotes ?? "—"}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

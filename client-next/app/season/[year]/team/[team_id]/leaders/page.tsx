@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTeamPage } from "../TeamPageContext";
 import { useTeamLeaders } from "@/lib/hooks/queries";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
 import {
   Table,
   TableBody,
@@ -20,34 +20,34 @@ export default function TeamLeadersPage() {
   if (isLoading) return <PageSpinner heightClass="h-[30vh]" />;
   if (isError) return <PageError message="Failed to load team leaders." />;
   if (!leaders.length) {
-    return <p className="py-8 text-center text-zinc-400">Team leaders are not available for this season yet.</p>;
+    return <p className="py-8 text-center text-muted-foreground">Team leaders are not available for this season yet.</p>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-zinc-700">
+    <div className="overflow-x-auto rounded-md border border-border">
       <Table>
         <TableHeader>
-          <TableRow className="border-zinc-700">
-            <TableHead className="text-zinc-400">Category</TableHead>
-            <TableHead className="text-zinc-400">Player</TableHead>
-            <TableHead className="text-zinc-400">Pos</TableHead>
-            <TableHead className="text-zinc-400 text-right">Stat</TableHead>
+          <TableRow className="border-border">
+            <TableHead className="text-muted-foreground">Category</TableHead>
+            <TableHead className="text-muted-foreground">Player</TableHead>
+            <TableHead className="text-muted-foreground">Pos</TableHead>
+            <TableHead className="text-muted-foreground text-right">Stat</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {leaders.map((l) => (
-            <TableRow key={l.category} className="border-zinc-800">
-              <TableCell className="text-zinc-300">{l.categoryDisplay}</TableCell>
-              <TableCell className="text-zinc-100">{l.player}</TableCell>
-              <TableCell className="text-zinc-400">{l.position ?? "—"}</TableCell>
-              <TableCell className="text-right text-zinc-100">{l.displayValue}</TableCell>
+            <TableRow key={l.category} className="border-border">
+              <TableCell className="text-foreground/80">{l.categoryDisplay}</TableCell>
+              <TableCell className="text-foreground">{l.player}</TableCell>
+              <TableCell className="text-muted-foreground">{l.position ?? "—"}</TableCell>
+              <TableCell className="text-right text-foreground">{l.displayValue}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      <p className="text-xs text-zinc-500 p-2">
+      <p className="text-xs text-muted-foreground p-2">
         Derived from national season leaders for{" "}
-        <Link href={`/season/${year}/stats`} className="underline hover:text-zinc-300">
+        <Link href={`/season/${year}/stats`} className="underline hover:text-foreground">
           {leaders[0]?.season ?? year}
         </Link>
         .

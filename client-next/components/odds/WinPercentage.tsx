@@ -69,7 +69,7 @@ export function WinPercentage({
             }}
           />
         ) : null}
-        <span className="block mt-1 font-semibold text-zinc-100">
+        <span className="block mt-1 font-semibold text-foreground">
           {`${Number(percentage)}%`}
         </span>
       </div>

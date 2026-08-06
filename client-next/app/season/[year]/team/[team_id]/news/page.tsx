@@ -5,8 +5,8 @@ import { useTeamPage } from "../TeamPageContext";
 import { useTeamNews } from "@/lib/hooks/queries";
 import { useActiveSeason } from "@/context/GlobalStateContext";
 import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
-import { UnavailableFeature } from "@/components/ui/UnavailableFeature";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { UnavailableFeature } from "@/components/UnavailableFeature";
 
 export default function TeamNewsPage() {
   const { year, team } = useTeamPage();
@@ -26,7 +26,7 @@ export default function TeamNewsPage() {
   if (isLoading) return <PageSpinner heightClass="h-[30vh]" />;
   if (isError) return <PageError message="Failed to load team news." />;
   if (!articles.length) {
-    return <p className="py-8 text-center text-zinc-400">No team news available.</p>;
+    return <p className="py-8 text-center text-muted-foreground">No team news available.</p>;
   }
 
   return (
@@ -37,7 +37,7 @@ export default function TeamNewsPage() {
           href={a.link ?? undefined}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex gap-3 rounded-md border border-zinc-700 bg-zinc-800 p-3 hover:bg-zinc-700"
+          className="flex gap-3 rounded-md border border-border bg-card p-3 hover:bg-accent"
         >
           {a.imageUrl && (
             <Image
@@ -50,8 +50,8 @@ export default function TeamNewsPage() {
             />
           )}
           <div className="min-w-0">
-            <h2 className="text-sm font-medium text-zinc-100">{a.headline}</h2>
-            {a.description && <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{a.description}</p>}
+            <h2 className="text-sm font-medium text-foreground">{a.headline}</h2>
+            {a.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{a.description}</p>}
           </div>
         </a>
       ))}

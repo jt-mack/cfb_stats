@@ -93,7 +93,7 @@ export function Schedule({
         return (
           <Card
             key={game.id ?? index}
-            className={`overflow-hidden border-2 bg-zinc-800 min-w-0 ${season && game.id ? "cursor-pointer hover:bg-zinc-700/80 transition-colors" : ""}`}
+            className={`overflow-hidden border-2 bg-card min-w-0 ${season && game.id ? "cursor-pointer hover:bg-accent/80 transition-colors" : ""}`}
             style={borderStyle}
           >
             <div
@@ -179,7 +179,7 @@ function ScheduleCardInner({
       <CardContent className="py-2 px-2 sm:px-3 overflow-x-auto">
         <Table className="min-w-[200px]">
           <TableHeader>
-            <TableRow className="border-zinc-700 hover:bg-transparent">
+            <TableRow className="border-border hover:bg-transparent">
               <TableHead className="w-0 p-1"></TableHead>
               {game.homeLineScores?.length
                 ? game.homeLineScores.map((_, i) => (
@@ -197,7 +197,7 @@ function ScheduleCardInner({
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow className="border-zinc-700">
+            <TableRow className="border-border">
               <TableCell className="text-xs sm:text-sm p-1 truncate max-w-[80px] sm:max-w-none">{game.awayTeam}</TableCell>
               {game.awayLineScores?.length
                 ? game.awayLineScores.map((score, i) => (
@@ -210,7 +210,7 @@ function ScheduleCardInner({
                 {game.awayPoints ?? "—"}
               </TableCell>
             </TableRow>
-            <TableRow className="border-zinc-700">
+            <TableRow className="border-border">
               <TableCell className="text-xs sm:text-sm p-1 truncate max-w-[80px] sm:max-w-none">{game.homeTeam}</TableCell>
               {game.homeLineScores?.length
                 ? game.homeLineScores.map((score, i) => (
@@ -249,18 +249,18 @@ function ScheduleCardInner({
             />
           )}
           {spread != null && (
-            <span className="text-sm text-zinc-400">
+            <span className="text-sm text-muted-foreground">
               {spread > 0 ? `+${spread}` : spread}
             </span>
           )}
           {enrichment?.lines?.lines?.[0]?.overUnder != null && (
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-muted-foreground">
               O/U {enrichment.lines.lines[0].overUnder}
             </span>
           )}
         </div>
         {(enrichment?.media?.length || enrichment?.weather) && (
-          <div className="mt-1 flex flex-wrap justify-center gap-2 text-xs text-zinc-500">
+          <div className="mt-1 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
             {enrichment.media?.slice(0, 1).map((m, i) => (
               <span key={i}>{m.outlet}</span>
             ))}

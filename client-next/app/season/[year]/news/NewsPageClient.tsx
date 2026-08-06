@@ -5,8 +5,10 @@ import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useNews } from "@/lib/hooks/queries";
 import { useActiveSeason } from "@/context/GlobalStateContext";
 import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
-import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
-import { UnavailableFeature } from "@/components/ui/UnavailableFeature";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { UnavailableFeature } from "@/components/UnavailableFeature";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function NewsPageClient() {
   const { year, seasonNum, isValidSeason } = useSeasonParams();
@@ -19,7 +21,7 @@ export default function NewsPageClient() {
     return (
       <div className="space-y-4 min-w-0">
         <div className="text-center space-y-1">
-          <h1 className="text-xl font-semibold text-zinc-100">College Football News</h1>
+          <h1 className="text-xl font-semibold text-foreground">College Football News</h1>
         </div>
         <UnavailableFeature message={availability.reason ?? "News is unavailable."} />
       </div>
@@ -31,40 +33,48 @@ export default function NewsPageClient() {
   return (
     <div className="space-y-4 min-w-0">
       <div className="text-center space-y-1">
-        <h1 className="text-xl font-semibold text-zinc-100">College Football News</h1>
-        <p className="text-sm text-zinc-400">Headlines from ESPN. Articles open on the source site.</p>
+        <h1 className="text-xl font-semibold text-foreground">College Football News</h1>
+        <p className="text-sm text-muted-foreground">
+          Headlines from ESPN. Articles open on the source site.
+        </p>
       </div>
       <div className="space-y-3">
         {articles.map((a) => (
-          <a
-            key={a.id}
-            href={a.link ?? undefined}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex gap-3 rounded-md border border-zinc-700 bg-zinc-800 p-3 hover:bg-zinc-700"
-          >
-            {a.imageUrl && (
-              <Image
-                src={a.imageUrl}
-                alt=""
-                width={120}
-                height={68}
-                className="rounded object-cover shrink-0 hidden sm:block"
-                unoptimized
-              />
-            )}
-            <div className="min-w-0">
-              <h2 className="text-sm font-medium text-zinc-100">{a.headline}</h2>
-              {a.description && <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{a.description}</p>}
-              <p className="text-xs text-zinc-500 mt-2">
-                {a.published ? new Date(a.published).toLocaleString("en-US") : ""}
-                {a.byline ? ` · ${a.byline}` : ""}
-                {a.premium ? " · Premium" : ""}
-              </p>
-            </div>
+          <a key={a.id} href={a.link ?? undefined} target="_blank" rel="noopener noreferrer">
+            <Card className="gap-0 py-0 hover:bg-accent/50 transition-colors">
+              <CardContent className="flex gap-3 p-3">
+                {a.imageUrl && (
+                  <Image
+                    src={a.imageUrl}
+                    alt=""
+                    width={120}
+                    height={68}
+                    className="rounded object-cover shrink-0 hidden sm:block"
+                    unoptimized
+                  />
+                )}
+                <div className="min-w-0">
+                  <h2 className="text-sm font-medium text-foreground">{a.headline}</h2>
+                  {a.description && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {a.description}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
+                    <span>
+                      {a.published ? new Date(a.published).toLocaleString("en-US") : ""}
+                      {a.byline ? ` · ${a.byline}` : ""}
+                    </span>
+                    {a.premium ? <Badge variant="secondary">Premium</Badge> : null}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </a>
         ))}
-        {!articles.length && <p className="text-center text-zinc-400">No articles available.</p>}
+        {!articles.length && (
+          <p className="text-center text-muted-foreground">No articles available.</p>
+        )}
       </div>
     </div>
   );

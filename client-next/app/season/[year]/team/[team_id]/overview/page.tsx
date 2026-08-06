@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTeamPage } from "../TeamPageContext";
 import { useCoaches, useTeamLeaders, useTeamNews } from "@/lib/hooks/queries";
-import { PageSpinner } from "@/components/ui/PageSpinner";
+import { PageSpinner } from "@/components/PageSpinner";
 import { withAlpha } from "@/lib/teamColors";
 
 function OverviewPanel({
@@ -17,14 +17,14 @@ function OverviewPanel({
 }) {
   return (
     <div
-      className="rounded-md border border-zinc-700 bg-zinc-800/80 p-4"
+      className="rounded-md border border-border bg-card/80 p-4"
       style={
         accent
           ? { borderLeftWidth: 3, borderLeftColor: accent, boxShadow: `inset 3px 0 0 ${withAlpha(accent, 0.15)}` }
           : undefined
       }
     >
-      <h3 className="text-sm font-medium text-zinc-300 mb-2">{title}</h3>
+      <h3 className="text-sm font-medium text-foreground/80 mb-2">{title}</h3>
       {children}
     </div>
   );
@@ -53,33 +53,33 @@ export default function TeamOverviewTab() {
       <div className="grid gap-3 sm:grid-cols-2">
         <OverviewPanel title="Next game" accent={accent}>
           {next ? (
-            <Link href={`/season/${year}/game/${next.id}`} className="text-zinc-100 hover:underline">
+            <Link href={`/season/${year}/game/${next.id}`} className="text-foreground hover:underline">
               {next.awayTeam} @ {next.homeTeam}
-              <span className="block text-xs text-zinc-400 mt-1">
+              <span className="block text-xs text-muted-foreground mt-1">
                 {next.startDate ? new Date(next.startDate).toLocaleString("en-US") : "TBD"}
               </span>
             </Link>
           ) : (
-            <p className="text-zinc-400 text-sm">No upcoming game scheduled.</p>
+            <p className="text-muted-foreground text-sm">No upcoming game scheduled.</p>
           )}
         </OverviewPanel>
         <OverviewPanel title="Last result" accent={accent}>
           {last ? (
-            <Link href={`/season/${year}/game/${last.id}`} className="text-zinc-100 hover:underline">
+            <Link href={`/season/${year}/game/${last.id}`} className="text-foreground hover:underline">
               {last.awayTeam} {last.awayPoints} – {last.homePoints} {last.homeTeam}
             </Link>
           ) : (
-            <p className="text-zinc-400 text-sm">No completed games yet.</p>
+            <p className="text-muted-foreground text-sm">No completed games yet.</p>
           )}
         </OverviewPanel>
       </div>
 
       <OverviewPanel title="Coach" accent={accent}>
         {coach ? (
-          <div className="text-sm text-zinc-100">
+          <div className="text-sm text-foreground">
             {[coach.firstName, coach.lastName].filter(Boolean).join(" ")}
             {coach.schoolRecordSummary ? (
-              <span className="text-zinc-400"> · School record {coach.schoolRecordSummary}</span>
+              <span className="text-muted-foreground"> · School record {coach.schoolRecordSummary}</span>
             ) : null}
             <Link
               href={`/season/${year}/team/${teamId}/coach`}
@@ -90,7 +90,7 @@ export default function TeamOverviewTab() {
             </Link>
           </div>
         ) : (
-          <p className="text-zinc-400 text-sm">Coach unavailable.</p>
+          <p className="text-muted-foreground text-sm">Coach unavailable.</p>
         )}
       </OverviewPanel>
 
@@ -107,13 +107,13 @@ export default function TeamOverviewTab() {
         {leaders.length ? (
           <ul className="space-y-1 text-sm">
             {leaders.slice(0, 6).map((l) => (
-              <li key={l.category} className="text-zinc-200">
-                <span className="text-zinc-400">{l.categoryDisplay}:</span> {l.player} ({l.displayValue})
+              <li key={l.category} className="text-foreground">
+                <span className="text-muted-foreground">{l.categoryDisplay}:</span> {l.player} ({l.displayValue})
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-zinc-400 text-sm">Season leaders not available yet.</p>
+          <p className="text-muted-foreground text-sm">Season leaders not available yet.</p>
         )}
       </OverviewPanel>
 
@@ -135,7 +135,7 @@ export default function TeamOverviewTab() {
                   href={a.link ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-zinc-100 hover:underline"
+                  className="text-sm text-foreground hover:underline"
                 >
                   {a.headline}
                 </a>
@@ -143,7 +143,7 @@ export default function TeamOverviewTab() {
             ))}
           </ul>
         ) : (
-          <p className="text-zinc-400 text-sm">No team news right now.</p>
+          <p className="text-muted-foreground text-sm">No team news right now.</p>
         )}
       </OverviewPanel>
     </div>

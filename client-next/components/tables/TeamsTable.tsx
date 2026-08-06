@@ -65,28 +65,28 @@ export function TeamsTable({
             setNameFilter(e.target.value);
             setPage(0);
           }}
-          className="w-full sm:max-w-xs bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-400 min-h-10"
+          className="w-full sm:max-w-xs bg-card border-border text-foreground placeholder:text-muted-foreground min-h-10"
         />
         {rankSourceLabel && (
-          <span className="text-xs text-zinc-500 sm:ml-auto">
+          <span className="text-xs text-muted-foreground sm:ml-auto">
             Rank source: {rankSourceLabel}
           </span>
         )}
       </div>
-      <div className="rounded-md border border-zinc-700 overflow-x-auto -mx-3 sm:mx-0">
+      <div className="rounded-md border border-border overflow-x-auto -mx-3 sm:mx-0">
         <Table className="min-w-[280px]">
           <TableHeader>
-            <TableRow className="border-zinc-700 hover:bg-zinc-800/50">
-              <TableHead className="text-zinc-300 w-10 sm:w-12 text-xs sm:text-sm py-3">Logo</TableHead>
-              <TableHead className="text-zinc-300 text-xs sm:text-sm py-3">Name</TableHead>
-              <TableHead className="text-zinc-300 text-right w-16 sm:w-auto text-xs sm:text-sm py-3">Rank</TableHead>
+            <TableRow className="border-border hover:bg-accent/50">
+              <TableHead className="text-foreground/80 w-10 sm:w-12 text-xs sm:text-sm py-3">Logo</TableHead>
+              <TableHead className="text-foreground/80 text-xs sm:text-sm py-3">Name</TableHead>
+              <TableHead className="text-foreground/80 text-right w-16 sm:w-auto text-xs sm:text-sm py-3">Rank</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pageData.map((row) => (
               <TableRow
                 key={row.id}
-                className="cursor-pointer border-zinc-700 hover:bg-zinc-800 active:bg-zinc-700"
+                className="cursor-pointer border-border hover:bg-accent active:bg-muted"
                 onClick={() => onRowClick(row)}
               >
                 <TableCell className="w-10 sm:w-12 py-2.5 sm:py-3">
@@ -100,12 +100,12 @@ export function TeamsTable({
                       unoptimized
                     />
                   ) : (
-                    <span className="text-zinc-500">—</span>
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
                 <TableCell className="font-medium text-sm sm:text-base py-2.5 sm:py-3">{row.name}</TableCell>
                 <TableCell
-                  className="text-right text-zinc-400 text-sm py-2.5 sm:py-3"
+                  className="text-right text-muted-foreground text-sm py-2.5 sm:py-3"
                   title={row.rankLabel}
                 >
                   {row.rank != null && row.rank > 0 ? row.rank : "NR"}
@@ -117,7 +117,7 @@ export function TeamsTable({
       </div>
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <p className="text-xs sm:text-sm text-zinc-400 text-center sm:text-left">
+          <p className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
             Showing {start + 1}–{Math.min(start + PAGE_SIZE, filtered.length)} of{" "}
             {filtered.length}
           </p>
@@ -127,7 +127,7 @@ export function TeamsTable({
               size="sm"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={currentPage === 0}
-              className="border-zinc-600 text-zinc-300 hover:bg-zinc-800 min-h-9 flex-1 sm:flex-initial"
+              className="border-input text-foreground/80 hover:bg-accent min-h-9 flex-1 sm:flex-initial"
             >
               Previous
             </Button>
@@ -136,7 +136,7 @@ export function TeamsTable({
               size="sm"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={currentPage >= totalPages - 1}
-              className="border-zinc-600 text-zinc-300 hover:bg-zinc-800 min-h-9 flex-1 sm:flex-initial"
+              className="border-input text-foreground/80 hover:bg-accent min-h-9 flex-1 sm:flex-initial"
             >
               Next
             </Button>

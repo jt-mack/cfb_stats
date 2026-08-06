@@ -28,12 +28,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-zinc-100`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <QueryProvider>
           <GlobalStateProvider>
             <Navbar />
-            <main className="min-h-[calc(100vh-3.5rem)] bg-zinc-900 text-zinc-100 overflow-x-hidden">
+            <main className="min-h-[calc(100vh-3.5rem)] bg-background text-foreground overflow-x-hidden">
               <div className="mx-auto max-w-7xl px-3 sm:px-4 py-4">{children}</div>
             </main>
           </GlobalStateProvider>
