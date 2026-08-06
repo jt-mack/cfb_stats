@@ -9,61 +9,74 @@ let sdvModule: SdvModule | null = null;
 let axiosEspnPatchApplied = false;
 
 /**
- * ESPN site.api returns 403 for sportsdataverse's default User-Agent.
- * Patch axios.create before SDV loads so its shared client omits UA on ESPN hosts.
+ * Native dynamic import — avoids TS compiling to require() in CJS output.
+ * Critical for axios: CJS `require('axios')` and ESM `import('axios')` are
+ * different instances; sportsdataverse is ESM and must see the patched one.
+ */
+const dynamicImport = new Function('specifier', 'return import(specifier)') as (
+  specifier: string
+) => Promise<{ default: unknown }>;
+
+type AxiosLike = {
+  create: (...args: unknown[]) => {
+    defaults: { headers: Record<string, unknown> & { common?: Record<string, unknown> } };
+    interceptors: { request: { use: (fn: (req: AxiosRequestLike) => AxiosRequestLike) => void } };
+  };
+  interceptors: { request: { use: (fn: (req: AxiosRequestLike) => AxiosRequestLike) => void } };
+};
+
+type AxiosRequestLike = {
+  url?: string;
+  baseURL?: string;
+  headers?: Record<string, unknown> & { delete?: (k: string) => void };
+};
+
+function stripUserAgentHeaders(headers: Record<string, unknown> & { delete?: (k: string) => void } | undefined): void {
+  if (!headers) return;
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === 'user-agent') delete headers[key];
+  }
+  if (typeof headers.delete === 'function') {
+    headers.delete('User-Agent');
+    headers.delete('user-agent');
+  }
+}
+
+/**
+ * ESPN / Akamai returns 403 for sportsdataverse's default User-Agent.
+ * Patch the ESM axios instance before SDV loads so its shared client omits UA.
  */
 async function patchAxiosForEspn(): Promise<void> {
   if (axiosEspnPatchApplied) return;
   axiosEspnPatchApplied = true;
-  const axios = (await import('axios')).default;
+  const axios = (await dynamicImport('axios')).default as AxiosLike;
 
-  const stripEspnUserAgent = (req: { url?: string; baseURL?: string; headers?: Record<string, unknown> & { delete?: (k: string) => void } }) => {
+  const stripEspnUserAgent = (req: AxiosRequestLike): AxiosRequestLike => {
     const url = `${req.baseURL ?? ''}${req.url ?? ''}`;
     if (!/espn\.com|espncdn\.com/i.test(url)) return req;
-    if (req.headers) {
-      if (typeof req.headers.delete === 'function') {
-        req.headers.delete('User-Agent');
-        req.headers.delete('user-agent');
-      } else {
-        delete req.headers['User-Agent'];
-        delete req.headers['user-agent'];
-      }
-    }
+    stripUserAgentHeaders(req.headers);
     return req;
   };
 
-  axios.interceptors.request.use((req) => stripEspnUserAgent(req as Parameters<typeof stripEspnUserAgent>[0]) as typeof req);
+  axios.interceptors.request.use(stripEspnUserAgent);
 
   const originalCreate = axios.create.bind(axios);
-  axios.create = ((config?: Parameters<typeof axios.create>[0]) => {
+  axios.create = ((config?: { headers?: Record<string, unknown> }) => {
+    if (config?.headers) stripUserAgentHeaders(config.headers);
     const instance = originalCreate(config);
-    const headers = instance.defaults.headers as Record<string, unknown> & {
-      common?: Record<string, unknown>;
-    };
-    const strip = (bag: Record<string, unknown> | undefined) => {
-      if (!bag) return;
-      delete bag['User-Agent'];
-      delete bag['user-agent'];
-    };
-    strip(headers);
-    strip(headers.common);
-    instance.interceptors.request.use((req) =>
-      stripEspnUserAgent(req as Parameters<typeof stripEspnUserAgent>[0]) as typeof req
-    );
+    const headers = instance.defaults.headers;
+    stripUserAgentHeaders(headers);
+    stripUserAgentHeaders(headers.common);
+    instance.interceptors.request.use(stripEspnUserAgent);
     return instance;
   }) as typeof axios.create;
 }
-
-/** Native dynamic import — avoids TS compiling to require() in CJS output. */
-const dynamicImport = new Function('specifier', 'return import(specifier)') as (
-  specifier: string
-) => Promise<{ default: SdvModule }>;
 
 export async function getSdv(): Promise<SdvModule> {
   if (!sdvModule) {
     await patchAxiosForEspn();
     const mod = await dynamicImport('sportsdataverse');
-    sdvModule = mod.default;
+    sdvModule = mod.default as SdvModule;
   }
   return sdvModule;
 }
