@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { FbsRepo } from '../repos/fbs-repo';
 import { cachedJson, parseSeasonQuery } from '../lib/route-helpers';
-import { getDefaultSeason } from '../lib/sdv';
+import { getDefaultSeason } from '../lib/espn-client';
 
 const router = express.Router();
 const fbsRepo = new FbsRepo();

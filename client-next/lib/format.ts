@@ -1,3 +1,4 @@
+
 /** Format height stored as total inches (API roster shape). */
 export function formatHeightInches(inches: number | null | undefined): string {
   if (inches == null || !Number.isFinite(inches) || inches <= 0) return "—";
@@ -57,3 +58,4 @@ export function normalizeEspnPlay(raw: Record<string, unknown>) {
     yardsGained: raw.statYardage != null ? Number(raw.statYardage) : null,
   };
 }
+

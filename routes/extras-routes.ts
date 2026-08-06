@@ -4,7 +4,7 @@ import { ScoreboardRepo } from '../repos/scoreboard-repo';
 import { RatingsRepo } from '../repos/ratings-repo';
 import { DeepStatsRepo } from '../repos/deep-stats-repo';
 import { cachedJson, parseSeasonQuery, parseWeekParam, parseYearParam } from '../lib/route-helpers';
-import { getDefaultSeason } from '../lib/sdv';
+import { getDefaultSeason } from '../lib/espn-client';
 
 const router = express.Router();
 const enrichmentRepo = new ScheduleEnrichmentRepo();

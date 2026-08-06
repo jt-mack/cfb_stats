@@ -4,8 +4,8 @@ import {
   extractStandingsEntries,
   mapParsedStandingsToRecord,
   mapStandingsEntryToRecord,
-} from "./mappers";
-import type { SdvStandingsEntry, SdvStandingsResponse } from "./types";
+} from "./conferences-repo";
+import type { SdvStandingsEntry, SdvStandingsResponse } from "../lib/espn-types";
 
 describe("mapStandingsEntryToRecord", () => {
   it("maps overall and conference records from displayValue", () => {

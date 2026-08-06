@@ -1,21 +1,201 @@
-import {
-  FBS_GROUP,
-  POSTSEASON_SEASON_TYPE,
-  REGULAR_SEASON_TYPE,
-  fetchParsedScoreboard,
-  fetchParsedTeamSchedule,
-  fetchTeamScheduleRaw,
-  mapParsedScoreboardRow,
-  mapParsedTeamScheduleRow,
-  mapScheduleEvent,
-  type SdvParsedScoreboardRow,
-} from './sdv';
+import { getCfb, sdvRequest, type SdvRequestOptions } from './espn-client';
+import { FBS_GROUP, POSTSEASON_SEASON_TYPE, REGULAR_SEASON_TYPE } from './espn-constants';
+import type {
+  SdvEspnTeam,
+  SdvParsedScoreboardRow,
+  SdvParsedTeamScheduleRow,
+  SdvTeamScheduleResponse,
+} from './espn-types';
 import { teamIndex } from './team-index';
-import type { Game } from './types';
+import type { Game, Venue } from './types';
 
 const REGULAR_WEEKS = 15;
 const POSTSEASON_WEEKS = 4;
 const SCOREBOARD_FALLBACK_CHUNK = 4;
+
+type ScoreboardParams = {
+  season?: number;
+  week?: number;
+  seasontype?: number;
+  groups?: number;
+  limit?: number;
+};
+
+function num(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  return Number.isNaN(n) ? null : n;
+}
+
+export function mapParsedScoreboardRow(row: SdvParsedScoreboardRow, week = 0): Game {
+  const homeScore = num(row.home_score);
+  const awayScore = num(row.away_score);
+  const completed = Boolean(row.status_type_completed) || row.status_type_state === 'post';
+  return {
+    id: num(row.game_id) ?? 0,
+    season: row.season_year ?? new Date().getFullYear(),
+    week,
+    startDate: row.date ?? '',
+    completed,
+    neutralSite: Boolean(row.neutral_site),
+    conferenceGame: Boolean(row.conference_competition),
+    venue: {
+      id: num(row.venue_id) ?? null,
+      name: row.venue_full_name ?? '',
+      address: {
+        city: row.venue_city ?? '',
+        state: row.venue_state ?? '',
+      },
+      images: [],
+      indoor: Boolean(row.venue_indoor),
+    },
+    homeTeam: row.home_location ?? row.home_display_name ?? '',
+    awayTeam: row.away_location ?? row.away_display_name ?? '',
+    homePoints: homeScore,
+    awayPoints: awayScore,
+    homeLineScores: null,
+    awayLineScores: null,
+    status: row.status_type_description,
+  };
+}
+
+export function mapParsedTeamScheduleRow(row: SdvParsedTeamScheduleRow): Game {
+  let comp: Record<string, unknown> | undefined;
+  try {
+    const competitions = JSON.parse(row.competitions ?? '[]') as Record<string, unknown>[];
+    comp = competitions[0];
+  } catch {
+    comp = undefined;
+  }
+
+  const competitors = (comp?.competitors as Record<string, unknown>[] | undefined) ?? [];
+  const home = competitors.find((c) => c.homeAway === 'home');
+  const away = competitors.find((c) => c.homeAway === 'away');
+  const homeTeam = home?.team as string | SdvEspnTeam | undefined;
+  const awayTeam = away?.team as string | SdvEspnTeam | undefined;
+  const homeScore = num((home?.score as { value?: unknown })?.value ?? home?.score);
+  const awayScore = num((away?.score as { value?: unknown })?.value ?? away?.score);
+  const status = comp?.status as { type?: { completed?: boolean; description?: string; state?: string } } | undefined;
+  const completed =
+    Boolean(status?.type?.completed) || status?.type?.state === 'post';
+
+  const homeName =
+    typeof homeTeam === 'string' ? homeTeam : homeTeam?.location ?? homeTeam?.displayName ?? '';
+  const awayName =
+    typeof awayTeam === 'string' ? awayTeam : awayTeam?.location ?? awayTeam?.displayName ?? '';
+
+  return {
+    id: num(row.id) ?? 0,
+    season: row.season_year ?? new Date().getFullYear(),
+    week: row.week_number ?? 0,
+    startDate: row.date ?? String(comp?.date ?? ''),
+    completed,
+    neutralSite: Boolean(comp?.neutralSite),
+    conferenceGame: Boolean(comp?.conferenceCompetition),
+    venue: (comp?.venue as Venue | undefined) ?? null,
+    homeTeam: homeName,
+    awayTeam: awayName,
+    homePoints: homeScore,
+    awayPoints: awayScore,
+    homeLineScores: (home?.linescores as { value?: number }[] | undefined)?.map((l) => l.value ?? 0) ?? null,
+    awayLineScores: (away?.linescores as { value?: number }[] | undefined)?.map((l) => l.value ?? 0) ?? null,
+    status: status?.type?.description,
+  };
+}
+
+export function mapScheduleEvent(event: Record<string, unknown>, season: number): Game {
+  const comp = (event.competitions as Record<string, unknown>[] | undefined)?.[0];
+  const competitors = (comp?.competitors as Record<string, unknown>[] | undefined) ?? [];
+  const home = competitors.find((c) => c.homeAway === 'home');
+  const away = competitors.find((c) => c.homeAway === 'away');
+  const homeTeam = home?.team as SdvEspnTeam | undefined;
+  const awayTeam = away?.team as SdvEspnTeam | undefined;
+  const homeScore = num((home?.score as { value?: unknown })?.value ?? home?.score);
+  const awayScore = num((away?.score as { value?: unknown })?.value ?? away?.score);
+  const status = comp?.status as { type?: { completed?: boolean; description?: string } } | undefined;
+  const weekObj = event.week as { number?: number } | undefined;
+  const venueNormalized = event?.venue as Record<string, unknown> | undefined;
+  const venue: Venue | null = venueNormalized ? {
+    id: num(venueNormalized?.id) ?? 0,
+    name: venueNormalized?.name as string ?? '',
+    address: {
+      city: (venueNormalized?.address as { city?: string })?.city ?? '',
+      state: (venueNormalized?.address as { state?: string })?.state ?? '',
+    },
+    images: venueNormalized?.images as { href: string, alt?: string }[] | undefined ?? [],
+    image: (venueNormalized?.images as { href: string, alt?: string }[] | undefined)?.find((i: { href: string, alt?: string }) => typeof i === 'object' && 'href' in i)?.href as string | undefined,
+    indoor: Boolean(venueNormalized?.indoor),
+    grass: Boolean(venueNormalized?.grass),
+  } : null;
+  return {
+    id: num(event.id) ?? 0,
+    season,
+    week: weekObj?.number ?? num(comp?.week) ?? 0,
+    startDate: String(event.date ?? comp?.date ?? ''),
+    completed: Boolean(status?.type?.completed),
+    neutralSite: Boolean(comp?.neutralSite),
+    conferenceGame: Boolean(comp?.conferenceCompetition),
+    venue,
+    homeTeam: homeTeam?.location ?? homeTeam?.displayName ?? '',
+    awayTeam: awayTeam?.location ?? awayTeam?.displayName ?? '',
+    homePoints: homeScore,
+    awayPoints: awayScore,
+    homeLineScores: (home?.linescores as { value?: number }[] | undefined)?.map((l) => l.value ?? 0) ?? null,
+    awayLineScores: (away?.linescores as { value?: number }[] | undefined)?.map((l) => l.value ?? 0) ?? null,
+    status: status?.type?.description,
+  };
+}
+
+export function mapScoreboardRowsToGames(rows: SdvParsedScoreboardRow[], week: number): Game[] {
+  return rows.map((r) => mapParsedScoreboardRow(r, week));
+}
+
+async function fetchParsedScoreboard(
+  params: ScoreboardParams,
+  options?: SdvRequestOptions
+): Promise<SdvParsedScoreboardRow[]> {
+  return sdvRequest(async () => {
+    const cfb = await getCfb();
+    const query: Record<string, unknown> = {
+      groups: params.groups ?? FBS_GROUP,
+      limit: params.limit ?? 300,
+      parsed: true,
+    };
+    if (params.season != null) query.dates = params.season;
+    if (params.week != null) query.week = params.week;
+    if (params.seasontype != null) query.season_type = params.seasontype;
+    return (await cfb.espnCfbScoreboard(query)) as SdvParsedScoreboardRow[];
+  }, options);
+}
+
+async function fetchParsedTeamSchedule(
+  teamId: number | string,
+  season: number,
+  options?: SdvRequestOptions
+): Promise<SdvParsedTeamScheduleRow[]> {
+  return sdvRequest(async () => {
+    const cfb = await getCfb();
+    return (await cfb.espnCfbTeamSchedule({
+      team_id: String(teamId),
+      season,
+      parsed: true,
+    })) as SdvParsedTeamScheduleRow[];
+  }, options);
+}
+
+async function fetchTeamScheduleRaw(
+  teamId: number | string,
+  season: number,
+  options?: SdvRequestOptions
+): Promise<SdvTeamScheduleResponse> {
+  return sdvRequest(async () => {
+    const cfb = await getCfb();
+    return (await cfb.espnCfbTeamSchedule({
+      team_id: String(teamId),
+      season,
+    })) as SdvTeamScheduleResponse;
+  }, options);
+}
 
 function teamInRow(row: SdvParsedScoreboardRow, teamId: number, school: string): boolean {
   const homeId = Number(row.home_id);
@@ -80,18 +260,18 @@ export async function getTeamSchedule(team: string, year: number): Promise<Game[
   const { id: teamId, school } = meta;
 
   try {
-    const parsed = await fetchParsedTeamSchedule(
-      { teamId, season: year },
-      { cacheKey: `scheduleParsed:${team}:${year}`, cacheTtlMs: 15 * 60 * 1000 }
-    );
+    const parsed = await fetchParsedTeamSchedule(teamId, year, {
+      cacheKey: `scheduleParsed:${team}:${year}`,
+      cacheTtlMs: 15 * 60 * 1000,
+    });
     if (parsed.length > 0) {
       return parsed.map(mapParsedTeamScheduleRow);
     }
 
-    const raw = await fetchTeamScheduleRaw(
-      { teamId, season: year },
-      { cacheKey: `scheduleRaw:${team}:${year}`, cacheTtlMs: 15 * 60 * 1000 }
-    );
+    const raw = await fetchTeamScheduleRaw(teamId, year, {
+      cacheKey: `scheduleRaw:${team}:${year}`,
+      cacheTtlMs: 15 * 60 * 1000,
+    });
     const events = raw.events ?? [];
     if (events.length > 0) {
       return events.map((e) => mapScheduleEvent(e, year));

@@ -1,5 +1,5 @@
 /**
- * Default CFB season year (matches backend lib/sdv getDefaultSeason).
+ * Default CFB season year (matches backend lib/espn-client getDefaultSeason).
  */
 export function getDefaultSeason(): number {
   const today = new Date();

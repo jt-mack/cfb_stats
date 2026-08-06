@@ -1,14 +1,14 @@
 /**
- * On-demand SDV contract suite.
+ * On-demand ESPN contract suite.
  *
- * Run: yarn test:sdv-contract
  * Not wired into CI — hits live ESPN/SportsDataverse.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getDefaultSeason, fetchParsedTeamSchedule } from '../index';
+import { getCfb, getDefaultSeason, sdvRequest } from '../espn-client';
+import type { SdvParsedTeamScheduleRow } from '../espn-types';
 import { entriesForSeason } from './catalog';
-import { printReport, writeJsonReport, summarize } from './report';
+import { printReport, summarize, writeJsonReport } from './report';
 import type { CheckResult, ContractContext, SeasonKind } from './types';
 import { isFailure } from './types';
 
@@ -33,8 +33,17 @@ async function buildContext(seasonKind: SeasonKind): Promise<ContractContext> {
     resolveGameId: async () => {
       if (gameIdCache !== undefined) return gameIdCache;
       try {
-        const rows = await fetchParsedTeamSchedule({ teamId: FIXTURE_TEAM_ID, season });
-        const withId = (rows ?? []).find((r) => r.id != null);
+        const rows = await sdvRequest(async () => {
+          const cfb = await getCfb();
+          return (await cfb.espnCfbTeamSchedule({
+            team_id: String(FIXTURE_TEAM_ID),
+            season,
+            parsed: true,
+          })) as SdvParsedTeamScheduleRow[];
+        }, {
+          cacheKey: `contract:resolveGame:${FIXTURE_TEAM_ID}:${season}`,
+        });
+        const withId = rows.find((row) => row.id != null);
         gameIdCache = withId?.id != null ? Number(withId.id) : null;
       } catch {
         gameIdCache = null;
@@ -46,8 +55,8 @@ async function buildContext(seasonKind: SeasonKind): Promise<ContractContext> {
   return ctx;
 }
 
-describe('SDV contract suite (live)', { timeout: 600_000 }, () => {
-  it('checks all consumed wrappers for current + prior seasons', async () => {
+describe('ESPN contract suite (live)', { timeout: 600_000 }, () => {
+  it('checks live shapes, owner mappers, repos, and UI fields', async () => {
     const all: CheckResult[] = [];
 
     for (const seasonKind of ['current', 'prior'] as SeasonKind[]) {
@@ -57,8 +66,7 @@ describe('SDV contract suite (live)', { timeout: 600_000 }, () => {
       );
       for (const entry of entriesForSeason(seasonKind)) {
         try {
-          const results = await entry.run(ctx);
-          all.push(...results);
+          all.push(...(await entry.run(ctx)));
         } catch (err) {
           all.push({
             entryId: entry.id,
@@ -80,10 +88,14 @@ describe('SDV contract suite (live)', { timeout: 600_000 }, () => {
       summary.failures.length,
       0,
       `${summary.failures.length} unexplained failure(s):\n` +
-        summary.failures.map((f) => `  [${f.status}] ${f.entryId} @${f.season}/${f.layer}: ${f.message}`).join('\n')
+        summary.failures
+          .map((failure) =>
+            `  [${failure.status}] ${failure.entryId} @${failure.season}/${failure.layer}: ${failure.message}`
+          )
+          .join('\n')
     );
   });
 });
 
-// Re-export for tooling
+// Re-export for tooling.
 export { isFailure };

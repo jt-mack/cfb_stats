@@ -1,10 +1,5 @@
-import {
-  fetchAthleteDisplayName,
-  fetchSeasonTypeLeaders,
-  idFromRef,
-  REGULAR_SEASON_TYPE,
-  POSTSEASON_SEASON_TYPE,
-} from '../lib/sdv';
+import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
+import { POSTSEASON_SEASON_TYPE, REGULAR_SEASON_TYPE } from '../lib/espn-constants';
 import { teamIndex } from '../lib/team-index';
 import type { LeaderEntry } from '../lib/types';
 
@@ -20,6 +15,73 @@ const PREFERRED_CATEGORIES = [
   'sacks',
   'interceptions',
 ] as const;
+
+type SeasonLeadersPayload = {
+  categories?: Array<{
+    name?: string;
+    displayName?: string;
+    shortDisplayName?: string;
+    abbreviation?: string;
+    leaders?: Array<{
+      displayValue?: string;
+      value?: number;
+      athlete?: { '$ref'?: string };
+      team?: { '$ref'?: string };
+    }>;
+  }>;
+};
+
+function idFromRef(ref: string | undefined | null, kind: 'athletes' | 'teams' | 'coaches'): number | null {
+  if (!ref) return null;
+  const re = new RegExp(`${kind}/(\\d+)`);
+  const m = ref.match(re);
+  return m ? Number(m[1]) : null;
+}
+
+function fetchSeasonTypeLeaders(
+  season: number,
+  seasonType = REGULAR_SEASON_TYPE,
+  options?: SdvRequestOptions
+): Promise<SeasonLeadersPayload> {
+  return sdvRequest(async () => {
+    const cfb = await getCfb();
+    return (await cfb.espnCfbSeasonTypeLeaders({
+      season,
+      season_type: seasonType,
+    })) as SeasonLeadersPayload;
+  }, {
+    cacheKey: `seasonTypeLeaders:${season}:${seasonType}`,
+    cacheTtlMs: options?.cacheTtlMs ?? 30 * 60 * 1000,
+    timeoutMs: options?.timeoutMs,
+  });
+}
+
+async function fetchAthleteDisplayName(
+  athleteId: number,
+  season: number,
+  options?: SdvRequestOptions
+): Promise<{ id: number; name: string; position: string | null }> {
+  return sdvRequest(async () => {
+    const axios = (await import('axios')).default;
+    const url = `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/${season}/athletes/${athleteId}?lang=en&region=us`;
+    const res = await axios.get(url, { timeout: 8_000 });
+    const data = res.data as {
+      id?: string | number;
+      displayName?: string;
+      fullName?: string;
+      position?: { abbreviation?: string };
+    };
+    return {
+      id: Number(data.id ?? athleteId),
+      name: data.displayName ?? data.fullName ?? `Athlete ${athleteId}`,
+      position: data.position?.abbreviation ?? null,
+    };
+  }, {
+    cacheKey: `athleteName:${season}:${athleteId}`,
+    cacheTtlMs: options?.cacheTtlMs ?? 24 * 60 * 60 * 1000,
+    timeoutMs: options?.timeoutMs ?? 8_000,
+  });
+}
 
 export class LeadersRepo {
   async resolveLeadersSeason(requested: number): Promise<{ season: number; seasonType: number }> {

@@ -1,8 +1,8 @@
 /**
  * CFBD-compatible API types for the frontend.
  *
- * These are domain shapes produced by our mappers (`lib/sdv/mappers.ts`), not raw
- * sportsdataverse / ESPN types — see `lib/sdv/types.ts` for SDV response types.
+ * These are domain shapes produced by repos (ESPN → domain maps), not raw
+ * sportsdataverse / ESPN types — see `lib/espn-types.ts` for wire response types.
  */
 
 export interface TeamNextEvent {
@@ -24,15 +24,7 @@ export interface Team {
   logos: string[] | null;
   twitter?: string | null;
   alternateNames?: string[] | null;
-  location?: {
-    name?: string;
-    city?: string;
-    state?: string;
-    capacity?: number | null;
-    constructionYear?: number | null;
-    grass?: boolean;
-    dome?: boolean;
-  } | null;
+  location?: Venue | null;
   links?: { href: string; text: string }[] | null;
   /** From ESPN team hub — overall W-L summary when present. */
   recordSummary?: string | null;
@@ -96,7 +88,7 @@ export interface Game {
   completed: boolean;
   neutralSite: boolean;
   conferenceGame: boolean;
-  venue: string | null;
+  venue?: Venue | null;
   homeTeam: string;
   awayTeam: string;
   homePoints: number | null;
@@ -138,12 +130,22 @@ export interface GamePlayerStatEntry {
   }[];
 }
 
+export interface Venue {
+  id: number | null;
+  name?: string;
+  address: { city?: string; state?: string } | null;
+  grass?: boolean;
+  indoor?: boolean;
+  image?: string | undefined;
+  images: string[] | { href: string, alt?: string }[] | undefined;
+}
+
 export interface AdvancedBoxScoreData {
   gameInfo?: {
     homeTeam?: string;
     awayTeam?: string;
     homeWinProb?: number;
-    venue?: { fullName?: string };
+    venue?: Venue;
   };
   teams?: Record<string, unknown>;
 }
@@ -152,6 +154,7 @@ export interface GameDetail {
   game: Game | null;
   teamStats: GameTeamStatEntry[] | null;
   playerStats: GamePlayerStatEntry[] | null;
+  venue?: Venue;
   advancedBoxScore: AdvancedBoxScoreData | null;
 }
 

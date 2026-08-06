@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { normalizeRankingsPayload, parsePollRankMap, parsePollWeek } from "./rankings";
+import { normalizeRankingsPayload, parsePollRankMap, parsePollWeek } from "./rankings-repo";
 
 describe("normalizeRankingsPayload", () => {
   it("keeps site.api rankings at the top level", () => {

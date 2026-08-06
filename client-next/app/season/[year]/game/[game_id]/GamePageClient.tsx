@@ -10,6 +10,7 @@ import { PlayerCard } from "@/components/cards/PlayerCard";
 import { BarChart } from "@/components/charts/BarChart";
 import { WinPercentage } from "@/components/odds/WinPercentage";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VenueCard } from "@/components/cards/VenueCard";
 import {
   Table,
   TableBody,
@@ -18,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { GameCard } from "@/components/cards/GameCard";
 
 type GamePageClientProps = {
   year: string;
@@ -138,22 +140,12 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   const overUnder = preview.lines?.lines?.[0]?.overUnder;
   const mediaOutlets = preview.media?.map((m) => m.outlet).filter(Boolean) ?? [];
   const weather = preview.weather;
-  const venueName = game.venue ?? "Stadium";
+
+  console.log({ game, preview })
 
   return (
     <div className="space-y-6 min-w-0">
-      <div className="text-center">
-        <Link href={`/season/${year}`} className="text-sm text-zinc-500 hover:text-zinc-300">
-          ← Back to season
-        </Link>
-        <h1 className="text-xl sm:text-2xl font-semibold text-zinc-100 mt-2">
-          Week {game.week}: {game.awayTeam} @ {game.homeTeam}
-        </h1>
-        {game.venue && <p className="text-sm text-zinc-400 mt-1">{game.venue}</p>}
-        {game.startDate && (
-          <p className="text-sm text-zinc-500">{formatSeasonDate(game.startDate)}</p>
-        )}
-      </div>
+      <GameCard game={game} year={Number(year)} />
 
       {!preview.completed && preview.statsYear && !Number.isNaN(seasonNum) && preview.statsYear < seasonNum && (
         <p className="text-sm text-amber-200/90 text-center">
@@ -200,15 +192,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-        {game.venue && (
-          <ImageCard
-            title={`${game.awayTeam} @ ${game.homeTeam}`}
-            imgSrc={null}
-            imgName={venueName}
-            text={venueName}
-            sub_text={game.startDate ? formatSeasonDate(game.startDate) : ""}
-          />
-        )}
+
         {seasonStatsChart && seasonStatsChart.datasets.length > 0 && (
           <div className="space-y-1">
             <p className="text-xs text-zinc-500 text-center">

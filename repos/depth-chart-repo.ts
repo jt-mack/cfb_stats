@@ -1,8 +1,22 @@
-import { fetchTeamDepthcharts } from '../lib/sdv';
+import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
 import type { DepthChart, DepthChartPlayer } from '../lib/types';
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function fetchTeamDepthcharts(
+  teamId: number | string,
+  options?: SdvRequestOptions
+): Promise<Record<string, unknown>> {
+  return sdvRequest(async () => {
+    const cfb = await getCfb();
+    return (await cfb.espnCfbTeamDepthcharts({ team_id: teamId })) as Record<string, unknown>;
+  }, {
+    cacheKey: `depthcharts:${teamId}`,
+    cacheTtlMs: options?.cacheTtlMs ?? 60 * 60 * 1000,
+    timeoutMs: options?.timeoutMs,
+  });
 }
 
 /**

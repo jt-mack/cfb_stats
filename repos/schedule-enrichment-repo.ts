@@ -1,4 +1,4 @@
-import { fetchGamePicks, mapPicksToOdds } from '../lib/sdv';
+import { mapPicksToOdds } from './games-repo';
 import type { BettingGame, GameMedia, GameWeather, PregameWinProbability } from '../lib/types';
 import { GamesRepo } from './games-repo';
 
@@ -22,11 +22,7 @@ export class ScheduleEnrichmentRepo {
     const upcomingResults = await Promise.all(
       upcoming.map(async (game) => {
         try {
-          const picks = await fetchGamePicks(game.id, {
-            cacheKey: `enrichPicks:${game.id}`,
-            cacheTtlMs: 60 * 60 * 1000,
-            timeoutMs: 8_000,
-          });
+          const picks = await this.gamesRepo.getGamePicks(game.id);
           const { odds, lines, media, weather } = mapPicksToOdds(picks, game);
           return { gameId: game.id, odds, media, weather, lines } satisfies GameEnrichment;
         } catch {

@@ -1,12 +1,7 @@
-import {
-  fetchSeasonPowerIndex,
-  fetchTeamScheduleRaw,
-  parsePowerIndexRow,
-  type SdvPredictiveMetric,
-} from '../lib/sdv';
+import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
+import type { SdvParsedPowerIndexRow, SdvPredictiveMetric, SdvTeamScheduleResponse } from '../lib/espn-types';
 import { teamIndex } from '../lib/team-index';
-import { getTeamSchedule } from '../lib/schedule-service';
-import type { GameWithOdds, PregameWinProbability } from '../lib/types';
+import type { AdvancedSeasonStat, GameWithOdds, PregameWinProbability } from '../lib/types';
 
 export type TeamRatingEntry = {
   team: string;
@@ -15,6 +10,90 @@ export type TeamRatingEntry = {
   source: 'espn_fpi' | 'espn_efficiency';
   label: string;
 };
+
+function parseEfficiencyJson(raw: unknown): Record<string, number> {
+  if (typeof raw !== 'string') return {};
+  try {
+    const arr = JSON.parse(raw) as SdvPredictiveMetric[];
+    const out: Record<string, number> = {};
+    for (const item of arr) {
+      if (item.name && item.value != null) out[item.name] = item.value;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function teamIdFromRef(ref: string): number | null {
+  const idMatch = ref.match(/teams\/(\d+)/);
+  return idMatch ? parseInt(idMatch[1], 10) : null;
+}
+
+export function parsePowerIndexRow(row: SdvParsedPowerIndexRow): {
+  teamId: number;
+  rank: number;
+  fpi: number;
+} | null {
+  const teamId = teamIdFromRef(String(row.team_$ref ?? ''));
+  if (teamId == null) return null;
+  try {
+    const predictives = JSON.parse(row.predictives ?? '[]') as SdvPredictiveMetric[];
+    const rank = predictives.find((p) => p.name === 'fpirank')?.value ?? 0;
+    const fpi = predictives.find((p) => p.name === 'fpi')?.value ?? 0;
+    return { teamId, rank, fpi };
+  } catch {
+    return null;
+  }
+}
+
+export function mapPowerIndexToAdvancedStats(
+  rows: SdvParsedPowerIndexRow[],
+  season: number,
+  teamIds: Map<number, string>
+): AdvancedSeasonStat[] {
+  return rows
+    .map((row) => {
+      const teamId = teamIdFromRef(String(row.team_$ref ?? ''));
+      const school = teamId != null ? teamIds.get(teamId) : null;
+      if (!school) return null;
+      const eff = parseEfficiencyJson(row.efficiencies);
+      return {
+        team: school,
+        season,
+        offenseEfficiency: eff.offefficiency ?? 0,
+        defenseEfficiency: eff.defefficiency ?? 0,
+      };
+    })
+    .filter(Boolean) as AdvancedSeasonStat[];
+}
+
+export function fetchSeasonPowerIndex(
+  season: number,
+  options?: SdvRequestOptions
+): Promise<SdvParsedPowerIndexRow[]> {
+  return sdvRequest(async () => {
+    const cfb = await getCfb();
+    return (await cfb.espnCfbSeasonPowerindex({ season, parsed: true })) as SdvParsedPowerIndexRow[];
+  }, {
+    cacheKey: `seasonPowerIndex:${season}`,
+    cacheTtlMs: options?.cacheTtlMs ?? 60 * 60 * 1000,
+    timeoutMs: options?.timeoutMs,
+  });
+}
+
+function fetchTeamScheduleRaw(
+  params: { teamId: number | string; season: number },
+  options?: SdvRequestOptions
+): Promise<SdvTeamScheduleResponse> {
+  return sdvRequest(async () => {
+    const cfb = await getCfb();
+    return (await cfb.espnCfbTeamSchedule({
+      team_id: String(params.teamId),
+      season: params.season,
+    })) as SdvTeamScheduleResponse;
+  }, options);
+}
 
 export class RatingsRepo {
   async getFpiRatings(year: number): Promise<TeamRatingEntry[]> {

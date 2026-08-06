@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import { routeCache } from './cache';
-import { getDefaultSeason } from './sdv';
+import { getDefaultSeason } from './espn-client';
 
 const MIN_SEASON = 1869;
 const MAX_SEASON = 2100;

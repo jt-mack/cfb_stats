@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { mapSeasonInfoToContextFields } from './season-context';
-import type { SdvSeasonInfo } from './sdv/types';
+import type { SdvSeasonInfo } from './espn-types';
 
 const season2026: SdvSeasonInfo = {
   year: 2026,

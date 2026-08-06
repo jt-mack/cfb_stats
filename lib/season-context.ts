@@ -1,6 +1,6 @@
 import { FbsRepo } from '../repos/fbs-repo';
-import { fetchSeasonInfo, getDefaultSeason } from './sdv';
-import type { SdvSeasonInfo, SdvSeasonTypeInfo } from './sdv/types';
+import { getCfb, getDefaultSeason, sdvRequest } from './espn-client';
+import type { SdvSeasonInfo, SdvSeasonTypeInfo } from './espn-types';
 
 export type SeasonPhase = 'offseason' | 'preseason' | 'regular' | 'postseason';
 
@@ -136,7 +136,13 @@ export async function buildSeasonContext(year: number): Promise<SeasonContext> {
   let base: Omit<SeasonContext, 'hasPublishedRankings' | 'rankingsWeek'>;
 
   try {
-    const info = await fetchSeasonInfo(year);
+    const info = await sdvRequest(async () => {
+      const cfb = await getCfb();
+      return (await cfb.espnCfbSeasonInfo({ season: year })) as SdvSeasonInfo;
+    }, {
+      cacheKey: `seasonInfo:${year}`,
+      cacheTtlMs: 60 * 60 * 1000,
+    });
     base = mapSeasonInfoToContextFields(info, year, defaultSeason);
   } catch (err) {
     console.warn(`buildSeasonContext season info failed for ${year}:`, err instanceof Error ? err.message : err);

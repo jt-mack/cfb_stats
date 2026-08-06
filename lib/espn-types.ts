@@ -29,8 +29,8 @@ export interface SdvEspnTeam {
   links?: unknown[];
   /** ESPN may return groups as an object (`{ id }`) or as an array of groups. */
   groups?:
-    | { id?: string; name?: string; shortName?: string }
-    | { id?: string; name?: string; shortName?: string }[];
+  | { id?: string; name?: string; shortName?: string }
+  | { id?: string; name?: string; shortName?: string }[];
   coach?: { firstName?: string; lastName?: string };
   record?: { items?: { summary?: string; displayValue?: string }[] };
   nextEvent?: Array<{ id?: string | number; name?: string; date?: string }>;

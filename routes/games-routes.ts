@@ -3,7 +3,7 @@ import { GamesRepo } from '../repos/games-repo';
 import { MatchupPreviewRepo } from '../repos/matchup-preview-repo';
 import { cachedJson, parseSeasonQuery } from '../lib/route-helpers';
 import { routeCache } from '../lib/cache';
-import { getDefaultSeason } from '../lib/sdv';
+import { getDefaultSeason } from '../lib/espn-client';
 
 const router = express.Router();
 const gamesRepo = new GamesRepo();

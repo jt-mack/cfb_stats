@@ -1,14 +1,10 @@
-import {
-  FBS_GROUP,
-  fetchParsedRankings,
-  fetchRawStandings,
-  fetchSeasonPowerIndex,
-  getDefaultSeason,
-  parsePowerIndexRow,
-} from '../lib/sdv';
-import { parsePollRankMap } from '../lib/sdv/rankings';
+import { getCfb, getDefaultSeason, sdvRequest } from '../lib/espn-client';
+import { FBS_GROUP } from '../lib/espn-constants';
+import type { SdvStandingsResponse } from '../lib/espn-types';
 import { teamIndex } from '../lib/team-index';
 import type { Team } from '../lib/types';
+import { fetchParsedRankings, parsePollRankMap } from './rankings-repo';
+import { fetchSeasonPowerIndex, parsePowerIndexRow } from './ratings-repo';
 
 export type RankSource = 'ap' | 'coaches' | 'cfp' | 'fpi' | 'prior_ap' | 'none';
 
@@ -38,7 +34,10 @@ export class FbsRepo {
   }
 
   async getRankingsFromStandings(year: number): Promise<Map<number, number>> {
-    const standings = await fetchRawStandings(year, FBS_GROUP, {
+    const standings = await sdvRequest(async () => {
+      const cfb = await getCfb();
+      return (await cfb.espnCfbStandings({ season: year, group: FBS_GROUP })) as SdvStandingsResponse;
+    }, {
       cacheKey: `fbsStandingsRaw:${year}`,
       cacheTtlMs: 15 * 60 * 1000,
     });
@@ -58,7 +57,6 @@ export class FbsRepo {
       const rankBySchool = new Map<string, number>();
       const teams = await teamIndex.getAllTeams(year);
       const idToSchool = new Map(teams.map((t) => [t.id, t.school]));
-      const schoolById = new Map(teams.map((t) => [t.school, t.id]));
 
       for (const row of rows) {
         const parsed = parsePowerIndexRow(row);

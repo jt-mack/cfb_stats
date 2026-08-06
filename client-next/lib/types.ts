@@ -2,7 +2,15 @@
  * Frontend types for CFB API responses (aligned with backend/ESPN-mapped shapes).
  */
 
-/** Venue/location from getTeams response. */
+export interface Venue {
+  id?: number | null;
+  name: string;
+  grass: boolean;
+  indoor: boolean;
+  address: { city?: string; state?: string };
+  image: string | undefined;
+  images: string[] | { href: string, alt?: string, rel?: string[], width?: number, height?: number }[] | undefined;
+}
 export interface TeamLocation {
   id?: number;
   name?: string;
@@ -107,7 +115,7 @@ export interface Game {
   completed: boolean;
   neutralSite: boolean;
   conferenceGame: boolean;
-  venue: string | null;
+  venue?: Venue | null;
   homeTeam: string;
   awayTeam: string;
   homePoints: number | null;

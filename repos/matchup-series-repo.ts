@@ -1,10 +1,57 @@
 import { GamesRepo } from './games-repo';
-import { buildMatchupFromSchedules } from '../lib/sdv';
 import { routeCache } from '../lib/cache';
 import type { Game, Matchup } from '../lib/types';
 
 /** How many prior seasons to include when calculating head-to-head series. */
 export const SERIES_LOOKBACK_YEARS = 15;
+
+export function buildMatchupFromSchedules(
+  team1: string,
+  team2: string,
+  schedule1: Game[],
+  schedule2: Game[]
+): Matchup {
+  const allGames = [...schedule1, ...schedule2];
+  const h2h = allGames.filter(
+    (g) =>
+      (g.homeTeam === team1 && g.awayTeam === team2) || (g.homeTeam === team2 && g.awayTeam === team1)
+  );
+  const seen = new Set<number>();
+  const unique = h2h.filter((g) => {
+    if (seen.has(g.id)) return false;
+    seen.add(g.id);
+    return g.completed;
+  });
+
+  let team1Wins = 0;
+  let team2Wins = 0;
+  let ties = 0;
+  const games = unique.map((g) => {
+    const homeScore = g.homePoints;
+    const awayScore = g.awayPoints;
+    if (homeScore != null && awayScore != null) {
+      const team1Home = g.homeTeam === team1;
+      const team1Score = team1Home ? homeScore : awayScore;
+      const team2Score = team1Home ? awayScore : homeScore;
+      if (team1Score > team2Score) team1Wins++;
+      else if (team2Score > team1Score) team2Wins++;
+      else ties++;
+    }
+    return {
+      season: g.season,
+      date: g.startDate,
+      homeTeam: g.homeTeam,
+      awayTeam: g.awayTeam,
+      homeScore,
+      awayScore,
+    };
+  });
+
+  const seasons = games.map((g) => g.season).filter((y) => Number.isFinite(y));
+  const sinceSeason = seasons.length ? Math.min(...seasons) : undefined;
+
+  return { team1, team2, team1Wins, team2Wins, ties, sinceSeason, games };
+}
 
 export class MatchupSeriesRepo {
   private gamesRepo = new GamesRepo();

@@ -1,22 +1,19 @@
 import type { GameDetail } from './games-repo';
-import { GamesRepo } from './games-repo';
-import { LeadersRepo } from './leaders-repo';
-import { MatchupSeriesRepo } from './matchup-series-repo';
-import { TeamsRepo } from './teams-repo';
-import { teamIndex } from '../lib/team-index';
 import {
-  buildMatchupFromSchedules,
-  fetchGameSummaryRaw,
-  fetchSeasonPowerIndex,
-  getDefaultSeason,
+  GamesRepo,
   mapLeadersToPlayerStats,
-  mapPowerIndexToAdvancedStats,
   mapPicksToOdds,
   mapSummaryToGameDetail,
   normalizeSummary,
   summaryToPicks,
-  type SdvParsedPowerIndexRow,
-} from '../lib/sdv';
+} from './games-repo';
+import { LeadersRepo } from './leaders-repo';
+import { buildMatchupFromSchedules, MatchupSeriesRepo } from './matchup-series-repo';
+import { TeamsRepo } from './teams-repo';
+import { fetchSeasonPowerIndex, mapPowerIndexToAdvancedStats } from './ratings-repo';
+import { getDefaultSeason } from '../lib/espn-client';
+import type { SdvParsedPowerIndexRow } from '../lib/espn-types';
+import { teamIndex } from '../lib/team-index';
 import type {
   AdvancedSeasonStat,
   Game,
@@ -89,7 +86,7 @@ export class MatchupPreviewRepo {
     const statsYear = season ?? getDefaultSeason();
 
     try {
-      const summaryRaw = await fetchGameSummaryRaw(gameId);
+      const summaryRaw = await this.gamesRepo.getGameSummaryRaw(gameId);
       const detail = mapSummaryToGameDetail(normalizeSummary(summaryRaw, gameId));
       const game = detail.game;
       if (!game) return EMPTY_PREVIEW(statsYear);

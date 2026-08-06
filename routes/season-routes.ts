@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { buildSeasonContext } from '../lib/season-context';
 import { cachedJson, parseYearParam } from '../lib/route-helpers';
-import { getDefaultSeason } from '../lib/sdv';
+import { getDefaultSeason } from '../lib/espn-client';
 
 const router = express.Router();
 
