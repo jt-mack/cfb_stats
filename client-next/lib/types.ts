@@ -97,6 +97,7 @@ export interface RosterPlayer {
   jersey: number | null;
   year: number;
   position: string | null;
+  headshot?: string | null;
 }
 
 export interface PregameWinProbability {
@@ -174,6 +175,19 @@ export interface AdvancedBoxScoreData {
   teams?: Record<string, unknown>;
 }
 
+export type PreviewPlayerStat = {
+  playerId: string;
+  player: RosterPlayer;
+  team: string;
+  position: string;
+  category: string;
+  statType: string;
+  stat: string | number;
+  season: number;
+  jersey: number | null;
+  teamLogo: string | null;
+};
+
 export interface GamePreview {
   game: Game | null;
   completed: boolean;
@@ -202,18 +216,7 @@ export interface GamePreview {
     color?: string | null;
     alternateColor?: string | null;
   }[];
-  playerSeasonStats: {
-    playerId: string;
-    player: string;
-    team: string;
-    position: string;
-    category: string;
-    statType: string;
-    stat: string;
-    season: number;
-    jersey: number | null;
-    teamLogo: string | null;
-  }[];
+  playerSeasonStats: PreviewPlayerStat[];
   odds: PregameWinProbability | null;
   lines: {
     lines: { spread: number; overUnder: number; provider: string }[];

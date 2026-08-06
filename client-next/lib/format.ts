@@ -7,6 +7,28 @@ export function formatHeightInches(inches: number | null | undefined): string {
   return `${feet}'${remaining}"`;
 }
 
+export function formatWeightPounds(pounds: number | null | undefined): string {
+  if (pounds == null || !Number.isFinite(pounds) || pounds <= 0) return "—";
+  return `${pounds} lbs`;
+}
+
+export function formatPlayerYear(year: number | null | undefined): string {
+  switch (year) {
+    case 0:
+      return "—";
+    case 1:
+      return "Freshman";
+    case 2:
+      return "Sophomore";
+    case 3:
+      return "Junior";
+    case 4:
+      return "Senior";
+    default:
+      return `${year}`;
+  }
+}
+
 /** Normalize ESPN drive JSON from `/games/:id/drives`. */
 export function normalizeEspnDrive(
   raw: Record<string, unknown>,

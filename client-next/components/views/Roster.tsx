@@ -11,13 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatHeightInches } from "@/lib/format";
-import type { RosterPlayer } from "@/lib/types";
+import type { RosterPlayer, Team } from "@/lib/types";
 import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
-import { useRoster } from "@/lib/hooks/queries";
+import { useRoster, useTeamInfo, useTeams } from "@/lib/hooks/queries";
 import { useActiveSeason } from "@/context/GlobalStateContext";
 import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
 import { PageSpinner, PageError } from "@/components/PageSpinner";
 import { UnavailableFeature } from "@/components/UnavailableFeature";
+import { PlayerCard } from "../cards/PlayerCard";
 
 function fullName(p: RosterPlayer): string {
   return [p.firstName, p.lastName].filter(Boolean).join(" ") || p.id;
@@ -37,6 +38,8 @@ export function Roster({ teamId, season }: RosterProps) {
     seasonNum,
     availability.enabled
   );
+  const { data: team = [] } = useTeamInfo(teamId, seasonNum);
+  const teamData = team as Team | undefined;
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortMode, setSortMode] = useState<"number" | "name">("number");
 
@@ -107,7 +110,7 @@ export function Roster({ teamId, season }: RosterProps) {
       </div>
       {sortedAndFiltered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sortedAndFiltered.map((player) => (
+          {/* {sortedAndFiltered.map((player) => (
             <Card key={player.id} className="border-border bg-card overflow-hidden">
               <CardContent className="p-4 flex gap-3">
                 <div className="shrink-0 w-14 h-14 rounded bg-muted flex items-center justify-center text-foreground font-medium">
@@ -128,6 +131,9 @@ export function Roster({ teamId, season }: RosterProps) {
                 </div>
               </CardContent>
             </Card>
+          ))} */}
+          {sortedAndFiltered.map((player) => (
+            <PlayerCard key={player.id} player={player} variant="roster" imgSize="thumbnail" team={teamData} />
           ))}
         </div>
       ) : (

@@ -18,13 +18,13 @@ import {
 import { GameCard } from "@/components/cards/GameCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
 type GamePageClientProps = {
   year: string;
   gameId: string;
 };
 
 export default function GamePageClient({ year, gameId }: GamePageClientProps) {
+  const [playByPlayRequested, setPlayByPlayRequested] = useState(false);
   const [showPlays, setShowPlays] = useState(false);
 
   const seasonNum = Number(year);
@@ -39,18 +39,29 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
     error,
   } = useGamePreview(validId ? id : undefined, validSeason ? seasonNum : undefined);
 
-  const loadPlayByPlay = Boolean(preview?.completed && preview.game);
-  const { data: drivesRaw = [] } = useGameDrives(validId ? id : undefined, loadPlayByPlay);
-  const { data: playsRaw = [] } = useGamePlays(validId ? id : undefined, loadPlayByPlay);
+  const canLoadPlayByPlay = Boolean(preview?.completed && preview.game);
+  const loadPlayByPlay = playByPlayRequested && canLoadPlayByPlay;
+  const { data: drivesRaw, isLoading: drivesLoading } = useGameDrives(
+    validId ? id : undefined,
+    loadPlayByPlay
+  );
+  const { data: playsRaw, isLoading: playsLoading } = useGamePlays(
+    validId ? id : undefined,
+    loadPlayByPlay
+  );
+  const playByPlayLoading = loadPlayByPlay && (drivesLoading || playsLoading);
 
   const drives = useMemo(() => {
-    if (!preview?.game || !drivesRaw.length) return [];
+    if (!preview?.game || !Array.isArray(drivesRaw) || !drivesRaw.length) return [];
     return drivesRaw.map((drive) =>
       normalizeEspnDrive(drive, preview.game!.homeTeam, preview.game!.awayTeam)
     );
   }, [drivesRaw, preview?.game]);
 
-  const plays = useMemo(() => playsRaw.map(normalizeEspnPlay), [playsRaw]);
+  const plays = useMemo(
+    () => (Array.isArray(playsRaw) ? playsRaw.map(normalizeEspnPlay) : []),
+    [playsRaw]
+  );
 
   const seasonStatsChart = useMemo(() => {
     if (!preview?.advancedSeasonStats?.length) return null;
@@ -75,15 +86,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
     return [...grouped.entries()].map(([team, stats]) => ({
       team,
       statLeaders: stats.map((s) => ({
-        player: {
-          id: s.playerId,
-          name: s.player,
-          displayName: s.player,
-          fullName: s.player,
-          jersey: s.jersey ?? undefined,
-          position: s.position,
-          team: s.teamLogo ? { logo: s.teamLogo } : undefined,
-        },
+        player: s.player,
         stats: { stat_type: s.statType, stat: s.stat },
       })),
     }));
@@ -138,6 +141,8 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   const overUnder = preview.lines?.lines?.[0]?.overUnder;
   const mediaOutlets = preview.media?.map((m) => m.outlet).filter(Boolean) ?? [];
   const weather = preview.weather;
+
+  console.log({ preview, teams })
 
   return (
     <div className="space-y-6 min-w-0">
@@ -302,6 +307,8 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
                     key={i}
                     player={playerStats.player}
                     stats={playerStats.stats}
+                    variant="stat-leader"
+                    imgSize="thumbnail"
                   />
                 ))}
               </div>
@@ -310,41 +317,69 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
         </div>
       )}
 
-      {drives.length > 0 && (
+      {canLoadPlayByPlay && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-foreground/80">Drives</h3>
-          <div className="space-y-1 max-h-64 overflow-y-auto">
-            {drives.map((d) => (
-              <div
-                key={d.id}
-                className="rounded border border-border bg-card px-3 py-2 text-xs text-foreground/80 flex flex-wrap items-center gap-2"
-              >
-                <span>
-                  <span className="text-foreground">{d.offense}</span> vs {d.defense} —{" "}
-                  {d.yards} yds, {d.plays} plays
-                </span>
-                {d.scoring ? <Badge variant="secondary">SCORE</Badge> : null}
-              </div>
-            ))}
-          </div>
-          {plays.length > 0 && (
+          {!playByPlayRequested ? (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => setShowPlays((v) => !v)}
+              onClick={() => setPlayByPlayRequested(true)}
             >
-              {showPlays ? "Hide" : "Show"} play-by-play ({plays.length})
+              View play by play
             </Button>
-          )}          {showPlays && (
-            <div className="space-y-1 max-h-96 overflow-y-auto mt-2">
-              {plays.slice(0, 100).map((p) => (
-                <div key={p.id} className="text-xs text-muted-foreground border-b border-border py-1">
-                  Q{p.period} {p.clock?.minutes}:{String(p.clock?.seconds ?? 0).padStart(2, "0")} —{" "}
-                  {p.playText}
-                </div>
-              ))}
+          ) : playByPlayLoading ? (
+            <div className="flex items-center gap-2 py-2">
+              <Skeleton className="h-4 w-4 rounded-full" />
+              <span className="text-sm text-muted-foreground">Loading play by play…</span>
             </div>
+          ) : drives.length === 0 && plays.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Play-by-play unavailable for this game.</p>
+          ) : (
+            <>
+              {drives.length > 0 && (
+                <>
+                  <h3 className="text-sm font-medium text-foreground/80">Drives</h3>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {drives.map((d) => (
+                      <div
+                        key={d.id}
+                        className="rounded border border-border bg-card px-3 py-2 text-xs text-foreground/80 flex flex-wrap items-center gap-2"
+                      >
+                        <span>
+                          <span className="text-foreground">{d.offense}</span> vs {d.defense} —{" "}
+                          {d.yards} yds, {d.plays} plays
+                        </span>
+                        {d.scoring ? <Badge variant="secondary">SCORE</Badge> : null}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {plays.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPlays((v) => !v)}
+                >
+                  {showPlays ? "Hide" : "Show"} play-by-play ({plays.length})
+                </Button>
+              )}
+              {showPlays && (
+                <div className="space-y-1 max-h-96 overflow-y-auto mt-2">
+                  {plays.slice(0, 100).map((p) => (
+                    <div
+                      key={p.id}
+                      className="text-xs text-muted-foreground border-b border-border py-1"
+                    >
+                      Q{p.period} {p.clock?.minutes}:
+                      {String(p.clock?.seconds ?? 0).padStart(2, "0")} — {p.playText}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

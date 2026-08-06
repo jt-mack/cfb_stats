@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 
 export function GameCard({ game, year }: { game: Game; year: number }) {
     const venue = game.venue;
-    console.log({ game })
     return (
         <Card className="overflow-hidden gap-0 py-0">
             {venue?.image ? (

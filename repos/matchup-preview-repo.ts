@@ -24,7 +24,8 @@ import type {
   RosterPlayer,
 } from '../lib/types';
 
-export type PreviewPlayerStat = PlayerStat & {
+export type PreviewPlayerStat = Omit<PlayerStat, 'player'> & {
+  player: RosterPlayer;
   jersey: number | null;
   teamLogo: string | null;
 };
@@ -303,14 +304,23 @@ export class MatchupPreviewRepo {
 
     return stats.map((stat) => {
       const match = this.findRosterPlayer(stat, roster);
-      const displayName = match
-        ? [match.firstName, match.lastName].filter(Boolean).join(' ') || stat.player
-        : stat.player;
+      const player: RosterPlayer =
+        match ??
+        ({
+          id: stat.playerId,
+          firstName: stat.player.split(/\s+/)[0] ?? stat.player,
+          lastName: stat.player.split(/\s+/).slice(1).join(' ') || '',
+          team: stat.team,
+          height: null,
+          weight: null,
+          jersey: null,
+          year: 0,
+          position: stat.position || null,
+        } satisfies RosterPlayer);
       return {
         ...stat,
-        player: displayName,
-        position: match?.position ?? stat.position,
-        jersey: match?.jersey ?? null,
+        player,
+        jersey: player.jersey,
         teamLogo: logoByTeam.get(stat.team) ?? null,
       };
     });

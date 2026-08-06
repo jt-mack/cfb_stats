@@ -1,5 +1,6 @@
-import { getCfb, getSdv, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
+import { getSdv, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
 import { teamIndex } from '../lib/team-index';
+import { GamesRepo } from './games-repo';
 import { fetchSeasonPowerIndex, parsePowerIndexRow } from './ratings-repo';
 
 export type TeamRecruitingRow = {
@@ -102,39 +103,35 @@ async function fetchInstitutionTalent(
   });
 }
 
+type SummaryDrives = {
+  previous?: Array<{ plays?: unknown[] }>;
+  current?: Array<{ plays?: unknown[] }>;
+};
+
+function drivesFromSummary(raw: { drives?: SummaryDrives | unknown }) {
+  const drives = raw.drives as SummaryDrives | undefined;
+  return [...(drives?.previous ?? []), ...(drives?.current ?? [])];
+}
+
 export class DeepStatsRepo {
+  private gamesRepo = new GamesRepo();
+
+  /** Extract drives from the shared summary cache — do not cache under gameSummaryRaw. */
   async getDrivesForGame(gameId: number) {
     try {
-      return await sdvRequest(async () => {
-        const cfb = await getCfb();
-        const raw = (await cfb.espnCfbSummary({ event_id: gameId })) as {
-          drives?: { previous?: unknown[]; current?: unknown[] };
-        };
-        return [...(raw.drives?.previous ?? []), ...(raw.drives?.current ?? [])];
-      }, {
-        cacheKey: `gameSummaryRaw:${gameId}`,
-        cacheTtlMs: 60 * 60 * 1000,
-      });
+      const raw = await this.gamesRepo.getGameSummaryRaw(gameId);
+      return drivesFromSummary(raw);
     } catch (err) {
       console.warn(`getDrivesForGame failed for ${gameId}:`, err instanceof Error ? err.message : err);
       return [];
     }
   }
 
+  /** Extract plays from the shared summary cache — do not cache under gameSummaryRaw. */
   async getPlaysForGame(gameId: number) {
     try {
-      return await sdvRequest(async () => {
-        const cfb = await getCfb();
-        const raw = (await cfb.espnCfbSummary({ event_id: gameId })) as {
-          drives?: { previous?: { plays?: unknown[] }[]; current?: { plays?: unknown[] }[] };
-        };
-        return [...(raw.drives?.previous ?? []), ...(raw.drives?.current ?? [])].flatMap(
-          (d) => d.plays ?? []
-        );
-      }, {
-        cacheKey: `gameSummaryRaw:${gameId}`,
-        cacheTtlMs: 60 * 60 * 1000,
-      });
+      const raw = await this.gamesRepo.getGameSummaryRaw(gameId);
+      return drivesFromSummary(raw).flatMap((d) => (Array.isArray(d.plays) ? d.plays : []));
     } catch (err) {
       console.warn(`getPlaysForGame failed for ${gameId}:`, err instanceof Error ? err.message : err);
       return [];
