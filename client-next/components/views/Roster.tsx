@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,21 +10,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getRoster } from "@/lib/repos";
-import type { RosterPlayer } from "@/lib/types";
+import { formatHeightInches } from "@/lib/format";
+import type { RosterPlayer, Team } from "@/lib/types";
 import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
+import { useRoster, useTeamInfo, useTeams } from "@/lib/hooks/queries";
+import { useActiveSeason } from "@/context/GlobalStateContext";
+import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
+import { PageSpinner, PageError } from "@/components/PageSpinner";
+import { UnavailableFeature } from "@/components/UnavailableFeature";
+import { PlayerCard } from "../cards/PlayerCard";
 
 function fullName(p: RosterPlayer): string {
   return [p.firstName, p.lastName].filter(Boolean).join(" ") || p.id;
 }
 
 type RosterProps = {
-  id: number;
+  teamId: string;
   season: string;
 };
 
-export function Roster({ id, season }: RosterProps) {
-  const [roster, setRoster] = useState<RosterPlayer[]>([]);
+export function Roster({ teamId, season }: RosterProps) {
+  const seasonNum = season ? Number(season) : undefined;
+  const activeSeason = useActiveSeason();
+  const availability = getFeatureAvailability("roster", seasonNum, activeSeason);
+  const { data: roster = [], isLoading, isError } = useRoster(
+    teamId,
+    seasonNum,
+    availability.enabled
+  );
+  const { data: team = [] } = useTeamInfo(teamId, seasonNum);
+  const teamData = team as Team | undefined;
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortMode, setSortMode] = useState<"number" | "name">("number");
 
@@ -50,11 +65,11 @@ export function Roster({ id, season }: RosterProps) {
     return result;
   }, [roster, sortMode, positionFilter]);
 
-  useEffect(() => {
-    if (!id) return;
-    const year = season ? Number(season) : undefined;
-    getRoster(String(id), year).then(setRoster).catch(() => setRoster([]));
-  }, [id, season]);
+  if (!availability.enabled) {
+    return <UnavailableFeature message={availability.reason ?? "Roster is unavailable."} />;
+  }
+  if (isLoading) return <PageSpinner heightClass="h-[30vh]" />;
+  if (isError) return <PageError message="Failed to load roster." />;
 
   return (
     <div className="space-y-4 min-w-0">
@@ -64,7 +79,7 @@ export function Roster({ id, season }: RosterProps) {
             variant={sortMode === "number" ? "default" : "outline"}
             size="sm"
             onClick={() => setSortMode("number")}
-            className="border-zinc-600 text-xs sm:text-sm min-h-9"
+            className="border-input text-xs sm:text-sm min-h-9"
           >
             <ArrowDownNarrowWide className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
             Number
@@ -73,20 +88,17 @@ export function Roster({ id, season }: RosterProps) {
             variant={sortMode === "name" ? "default" : "outline"}
             size="sm"
             onClick={() => setSortMode("name")}
-            className="border-zinc-600 text-xs sm:text-sm min-h-9"
+            className="border-input text-xs sm:text-sm min-h-9"
           >
             <ArrowDownWideNarrow className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
             Name
           </Button>
         </div>
-        <Select
-          value={positionFilter}
-          onValueChange={setPositionFilter}
-        >
-          <SelectTrigger className="w-full sm:w-[180px] border-zinc-600 bg-zinc-800 text-zinc-100 min-h-9">
+        <Select value={positionFilter} onValueChange={setPositionFilter}>
+          <SelectTrigger className="w-full sm:w-[180px] border-input bg-card text-foreground min-h-9">
             <SelectValue placeholder="All Positions" />
           </SelectTrigger>
-          <SelectContent className="border-zinc-700 bg-zinc-800 text-zinc-100">
+          <SelectContent className="border-border bg-card text-foreground">
             <SelectItem value="all">All Positions</SelectItem>
             {positionOptions.map((pos) => (
               <SelectItem key={pos} value={pos}>
@@ -96,40 +108,36 @@ export function Roster({ id, season }: RosterProps) {
           </SelectContent>
         </Select>
       </div>
-      {sortedAndFiltered.length > 0 && (
+      {sortedAndFiltered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sortedAndFiltered.map((player) => (
-            <Card
-              key={player.id}
-              className="border-zinc-700 bg-zinc-800 overflow-hidden"
-            >
+          {/* {sortedAndFiltered.map((player) => (
+            <Card key={player.id} className="border-border bg-card overflow-hidden">
               <CardContent className="p-4 flex gap-3">
-                <div
-                  className="shrink-0 w-14 h-14 rounded bg-zinc-700 flex items-center justify-center text-zinc-100 font-medium"
-                >
+                <div className="shrink-0 w-14 h-14 rounded bg-muted flex items-center justify-center text-foreground font-medium">
                   #{player.jersey ?? "—"}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-semibold text-zinc-100 truncate">
-                    {fullName(player)}
-                  </p>
-                  <p className="text-sm text-zinc-400">
+                  <p className="font-semibold text-foreground truncate">{fullName(player)}</p>
+                  <p className="text-sm text-muted-foreground">
                     #{player.jersey ?? "—"} • {player.position ?? "—"}
                   </p>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    {player.height != null ? `${player.height}"` : "—"} •{" "}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatHeightInches(player.height)} •{" "}
                     {player.weight != null ? `${player.weight} lbs` : "—"}
                   </p>
                   {player.year != null && (
-                    <p className="text-xs text-zinc-500">
-                      Year: {player.year}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Year: {player.year}</p>
                   )}
                 </div>
               </CardContent>
             </Card>
+          ))} */}
+          {sortedAndFiltered.map((player) => (
+            <PlayerCard key={player.id} player={player} variant="roster" imgSize="thumbnail" team={teamData} />
           ))}
         </div>
+      ) : (
+        <p className="text-center text-muted-foreground py-4">No roster data available.</p>
       )}
     </div>
   );

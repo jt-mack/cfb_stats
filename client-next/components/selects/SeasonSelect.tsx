@@ -7,9 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getDefaultSeason } from "@/lib/seasonHelpers";
 
-const currentYear = new Date().getFullYear();
-const years = Array.from({ length: 11 }, (_, i) => currentYear - i);
+const defaultYear = getDefaultSeason();
+const years = Array.from({ length: 11 }, (_, i) => defaultYear - i);
 
 type SeasonSelectProps = {
   value: string;
@@ -19,12 +20,12 @@ type SeasonSelectProps = {
 export function SeasonSelect({ value, onValueChange }: SeasonSelectProps) {
   return (
     <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger className="w-[120px] border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700" aria-label="Select season">
+      <SelectTrigger className="w-[120px]" aria-label="Select season">
         <SelectValue placeholder="Season" />
       </SelectTrigger>
-      <SelectContent className="border-zinc-700 bg-zinc-800 text-zinc-100">
+      <SelectContent>
         {years.map((year) => (
-          <SelectItem key={year} value={String(year)} className="focus:bg-zinc-700 focus:text-zinc-100">
+          <SelectItem key={year} value={String(year)}>
             {year}
           </SelectItem>
         ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -15,6 +16,8 @@ import { WinPercentage } from "@/components/odds/WinPercentage";
 import type { GameWithOdds } from "@/lib/types";
 import type { Conference } from "@/lib/types";
 import type { Team } from "@/lib/types";
+import type { GameEnrichment } from "@/lib/repos/extrasRepo";
+import { withAlpha } from "@/lib/teamColors";
 
 function isHomeTeam(game: GameWithOdds, teamSchool: string | undefined) {
   return game.homeTeam === teamSchool;
@@ -46,11 +49,25 @@ function teamWon(
   );
 }
 
+/** Midnight kickoffs are ESPN placeholders for an unset time — show TBD. */
+function formatScheduleKickoff(startDate: string): string {
+  const d = new Date(startDate);
+  if (Number.isNaN(d.getTime())) return "TBD";
+
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const isMidnightPlaceholder = d.getHours() === 0 && d.getMinutes() === 0;
+  if (isMidnightPlaceholder) return `${date} TBD`;
+
+  return `${date} ${d.toLocaleTimeString("en-US", { timeStyle: "short" })}`;
+}
+
 type ScheduleProps = {
   schedule: GameWithOdds[];
   conference?: Conference | null;
   team: Team;
   style?: { color?: string; backgroundColor?: string };
+  season?: string;
+  enrichmentByGameId?: Map<number, GameEnrichment>;
 };
 
 export function Schedule({
@@ -58,136 +75,203 @@ export function Schedule({
   conference,
   team,
   style = {},
+  season,
+  enrichmentByGameId,
 }: ScheduleProps) {
   const teamSchool = team?.school;
+  const primary = style.color ?? "#71717a";
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
       {schedule?.map((game, index) => {
-        const borderColor = game.neutralSite
-          ? "border-amber-500/50"
-          : isHomeTeam(game, teamSchool)
-            ? "border-zinc-600"
-            : "border-red-500/50";
+        const isHome = isHomeTeam(game, teamSchool);
+        const borderStyle = game.neutralSite
+          ? { borderColor: "rgba(245, 158, 11, 0.5)" }
+          : isHome
+            ? { borderColor: primary }
+            : { borderColor: withAlpha(primary, 0.35) };
         return (
           <Card
             key={game.id ?? index}
-            className={`overflow-hidden border ${borderColor} bg-zinc-800 min-w-0`}
+            className={`overflow-hidden border-2 bg-card min-w-0 ${season && game.id ? "cursor-pointer hover:bg-accent/80 transition-colors" : ""}`}
+            style={borderStyle}
           >
-            <CardHeader className="py-2 px-2 sm:px-3 flex flex-row justify-between items-center flex-wrap gap-1">
-              <div className="flex items-center gap-1 min-w-0">
-                <span className="text-xs sm:text-sm whitespace-nowrap">Week {game.week}</span>
-                {game.conferenceGame && conference?.logo && (
-                  <Image
-                    src={conference.logo}
-                    alt={conference.name ?? ""}
-                    width={20}
-                    height={20}
-                    className="object-contain shrink-0 hidden sm:block"
-                    unoptimized
-                  />
-                )}
-              </div>
-              <div className="text-center text-xs sm:text-sm shrink-0">
-                {game.startDate ? (
-                  <>
-                    {new Date(game.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
-                    {new Date(game.startDate).toLocaleTimeString("en-US", {
-                      timeStyle: "short",
-                    })}
-                  </>
-                ) : (
-                  "TBD"
-                )}
-              </div>
-              <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-                <span className="truncate text-xs sm:text-sm">{game.venue ?? "—"}</span>
-                <IconForTeam game={game} teamSchool={teamSchool} />
-              </div>
-            </CardHeader>
-            <CardContent className="py-2 px-2 sm:px-3 overflow-x-auto">
-              <Table className="min-w-[200px]">
-                <TableHeader>
-                  <TableRow className="border-zinc-700 hover:bg-transparent">
-                    <TableHead className="w-0 p-1"></TableHead>
-                    {game.homeLineScores?.length
-                      ? game.homeLineScores.map((_, i) => (
-                          <TableHead
-                            key={i}
-                            className="text-center text-[10px] sm:text-xs p-1"
-                          >
-                            {i >= 4 ? "OT" : i + 1}
-                          </TableHead>
-                        ))
-                      : null}
-                    <TableHead className="text-end text-[10px] sm:text-xs p-1">
-                      {game.completed ? "F" : ""}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow className="border-zinc-700">
-                    <TableCell className="text-xs sm:text-sm p-1 truncate max-w-[80px] sm:max-w-none">{game.awayTeam}</TableCell>
-                    {game.awayLineScores?.length
-                      ? game.awayLineScores.map((score, i) => (
-                          <TableCell key={i} className="text-center text-xs sm:text-sm p-1">
-                            {score}
-                          </TableCell>
-                        ))
-                      : null}
-                    <TableCell className="text-end font-semibold text-xs sm:text-sm p-1">
-                      {game.awayPoints ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow className="border-zinc-700">
-                    <TableCell className="text-xs sm:text-sm p-1 truncate max-w-[80px] sm:max-w-none">{game.homeTeam}</TableCell>
-                    {game.homeLineScores?.length
-                      ? game.homeLineScores.map((score, i) => (
-                          <TableCell key={i} className="text-center text-xs sm:text-sm p-1">
-                            {score}
-                          </TableCell>
-                        ))
-                      : null}
-                    <TableCell className="text-end font-semibold text-xs sm:text-sm p-1">
-                      {game.homePoints ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-              <div className="mt-2 flex flex-wrap justify-center items-center gap-2">
-                {game.completed && (
-                  <span
-                    className={`text-lg font-bold ${
-                      teamWon(game, teamSchool) ? "text-green-500" : "text-red-500"
-                    }`}
-                  >
-                    {teamWon(game, teamSchool) ? "W" : "L"}
-                  </span>
-                )}
-                {!game.completed && game.odds?.homeWinProbability != null && (
-                  <WinPercentage
-                    logoUrl={team?.logos?.[0] ?? ""}
-                    percentage={
-                      (
-                        (isHomeTeam(game, teamSchool)
-                          ? (game.odds.homeWinProbability ?? 0)
-                          : 1 - (game.odds.homeWinProbability ?? 0)) * 100
-                    ).toFixed(2)
-                    }
-                    small
-                    color={style?.color ?? "#71717a"}
-                  />
-                )}
-                {game.odds?.spread != null && (
-                  <span className="text-sm text-zinc-400">
-                    {game.odds.spread > 0 ? `+${game.odds.spread}` : game.odds.spread}
-                  </span>
-                )}
-              </div>
-            </CardContent>
+            <div
+              className="h-1 w-full"
+              style={{
+                backgroundColor: game.neutralSite
+                  ? "rgb(245, 158, 11)"
+                  : isHome
+                    ? primary
+                    : withAlpha(primary, 0.45),
+              }}
+            />
+            {season && game.id ? (
+              <Link href={`/season/${season}/game/${game.id}`} className="block">
+                <ScheduleCardInner
+                  game={game}
+                  conference={conference}
+                  teamSchool={teamSchool}
+                  teamLogo={team?.logos?.[0] ?? ""}
+                  style={style}
+                  enrichment={game.id ? enrichmentByGameId?.get(game.id) : undefined}
+                />
+              </Link>
+            ) : (
+              <ScheduleCardInner
+                game={game}
+                conference={conference}
+                teamSchool={teamSchool}
+                teamLogo={team?.logos?.[0] ?? ""}
+                style={style}
+                enrichment={game.id ? enrichmentByGameId?.get(game.id) : undefined}
+              />
+            )}
           </Card>
         );
       })}
     </div>
+  );
+}
+
+function ScheduleCardInner({
+  game,
+  conference,
+  teamSchool,
+  teamLogo,
+  style,
+  enrichment,
+}: {
+  game: GameWithOdds;
+  conference?: Conference | null;
+  teamSchool: string | undefined;
+  teamLogo: string;
+  style: { color?: string; backgroundColor?: string };
+  enrichment?: GameEnrichment;
+}) {
+  const odds = game.odds ?? enrichment?.odds;
+  const spread = odds?.spread ?? enrichment?.lines?.lines?.[0]?.spread;
+
+  return (
+    <>
+      <CardHeader className="py-2 px-2 sm:px-3 flex flex-row justify-between items-center flex-wrap gap-1">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="text-xs sm:text-sm whitespace-nowrap">Week {game.week}</span>
+          {game.conferenceGame && conference?.logo && (
+            <Image
+              src={conference.logo}
+              alt={conference.name ?? ""}
+              width={20}
+              height={20}
+              className="object-contain shrink-0 hidden sm:block"
+              unoptimized
+            />
+          )}
+        </div>
+        <div className="text-center text-xs sm:text-sm shrink-0">
+          {game.startDate ? formatScheduleKickoff(game.startDate) : "TBD"}
+        </div>
+        <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+          <span className="truncate text-xs sm:text-sm">{game.venue?.name ?? "—"}</span>
+          <IconForTeam game={game} teamSchool={teamSchool} />
+        </div>
+      </CardHeader>
+      <CardContent className="py-2 px-2 sm:px-3 overflow-x-auto">
+        <Table className="min-w-[200px]">
+          <TableHeader>
+            <TableRow className="border-border hover:bg-transparent">
+              <TableHead className="w-0 p-1"></TableHead>
+              {game.homeLineScores?.length
+                ? game.homeLineScores.map((_, i) => (
+                  <TableHead
+                    key={i}
+                    className="text-center text-[10px] sm:text-xs p-1"
+                  >
+                    {i >= 4 ? "OT" : i + 1}
+                  </TableHead>
+                ))
+                : null}
+              <TableHead className="text-end text-[10px] sm:text-xs p-1">
+                {game.completed ? "F" : ""}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow className="border-border">
+              <TableCell className="text-xs sm:text-sm p-1 truncate max-w-[80px] sm:max-w-none">{game.awayTeam}</TableCell>
+              {game.awayLineScores?.length
+                ? game.awayLineScores.map((score, i) => (
+                  <TableCell key={i} className="text-center text-xs sm:text-sm p-1">
+                    {score}
+                  </TableCell>
+                ))
+                : null}
+              <TableCell className="text-end font-semibold text-xs sm:text-sm p-1">
+                {game.awayPoints ?? "—"}
+              </TableCell>
+            </TableRow>
+            <TableRow className="border-border">
+              <TableCell className="text-xs sm:text-sm p-1 truncate max-w-[80px] sm:max-w-none">{game.homeTeam}</TableCell>
+              {game.homeLineScores?.length
+                ? game.homeLineScores.map((score, i) => (
+                  <TableCell key={i} className="text-center text-xs sm:text-sm p-1">
+                    {score}
+                  </TableCell>
+                ))
+                : null}
+              <TableCell className="text-end font-semibold text-xs sm:text-sm p-1">
+                {game.homePoints ?? "—"}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+        <div className="mt-2 flex flex-wrap justify-center items-center gap-2">
+          {game.completed && (
+            <span
+              className={`text-lg font-bold ${teamWon(game, teamSchool) ? "text-green-500" : "text-red-500"
+                }`}
+            >
+              {teamWon(game, teamSchool) ? "W" : "L"}
+            </span>
+          )}
+          {!game.completed && odds?.homeWinProbability != null && (
+            <WinPercentage
+              logoUrl={teamLogo}
+              percentage={
+                (
+                  (isHomeTeam(game, teamSchool)
+                    ? (odds.homeWinProbability ?? 0)
+                    : 1 - (odds.homeWinProbability ?? 0)) * 100
+                ).toFixed(2)
+              }
+              small
+              color={style?.color ?? "#71717a"}
+            />
+          )}
+          {spread != null && (
+            <span className="text-sm text-muted-foreground">
+              {spread > 0 ? `+${spread}` : spread}
+            </span>
+          )}
+          {enrichment?.lines?.lines?.[0]?.overUnder != null && (
+            <span className="text-xs text-muted-foreground">
+              O/U {enrichment.lines.lines[0].overUnder}
+            </span>
+          )}
+        </div>
+        {(enrichment?.media?.length || enrichment?.weather) && (
+          <div className="mt-1 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
+            {enrichment.media?.slice(0, 1).map((m, i) => (
+              <span key={i}>{m.outlet}</span>
+            ))}
+            {enrichment.weather &&
+              !enrichment.weather.gameIndoors &&
+              enrichment.weather.temperature != null && (
+                <span>{enrichment.weather.temperature}°F</span>
+              )}
+          </div>
+        )}
+      </CardContent>
+    </>
   );
 }

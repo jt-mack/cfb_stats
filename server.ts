@@ -1,13 +1,14 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import dotenv from 'dotenv';
-import './lib/cfbd-client'; // ensure CFBD client is configured with API key
+import './lib/espn-client'; // preload SportsDataverse client module
 import cfbRoutes from './routes';
 
 const port = process.env.SERVER_PORT || 5000;
 const app = express();
-
-dotenv.config();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());

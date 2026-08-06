@@ -61,24 +61,24 @@ export function TeamDetails({ team, conferenceName }: TeamDetailsProps) {
     .join(" · ");
 
   return (
-    <div className="mb-4 rounded-lg border border-zinc-700 bg-zinc-900/50 p-3 sm:p-4 text-sm">
+    <div className="mb-4 rounded-lg border border-border bg-background/50 p-3 sm:p-4 text-sm">
       <div className="flex flex-wrap gap-x-6 gap-y-3">
         {hasVenue && (
           <div className="flex flex-col gap-1 min-w-0">
-            <div className="flex items-center gap-1.5 text-zinc-400">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
               <Building2 className="h-4 w-4 shrink-0" />
-              <span className="font-medium text-zinc-300">Home venue</span>
+              <span className="font-medium text-foreground/80">Home venue</span>
             </div>
-            <div className="text-zinc-100">
+            <div className="text-foreground">
               {venueName && <span className="font-medium">{venueName}</span>}
               {(city || state) && (
-                <span className="text-zinc-400">
+                <span className="text-muted-foreground">
                   {venueName ? " · " : ""}
                   {[city, state].filter(Boolean).join(", ")}
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-500">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
               {capacity != null && capacity > 0 && (
                 <span className="flex items-center gap-1">
                   <Users className="h-3.5 w-3.5" />
@@ -100,16 +100,16 @@ export function TeamDetails({ team, conferenceName }: TeamDetailsProps) {
 
         {(hasConference || hasClassification) && (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1.5 text-zinc-400">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
               <MapPin className="h-4 w-4 shrink-0" />
-              <span className="font-medium text-zinc-300">Conference</span>
+              <span className="font-medium text-foreground/80">Conference</span>
             </div>
-            <div className="text-zinc-100">
+            <div className="text-foreground">
               {conference && division
                 ? `${conference} · ${division}`
                 : conference ?? division ?? ""}
               {hasClassification && (
-                <span className="text-zinc-500">
+                <span className="text-muted-foreground">
                   {conference || division ? " · " : ""}
                   {classification}
                 </span>
@@ -120,7 +120,7 @@ export function TeamDetails({ team, conferenceName }: TeamDetailsProps) {
 
         {hasTwitter && (
           <div className="flex flex-col gap-1">
-            <span className="font-medium text-zinc-300">Follow</span>
+            <span className="font-medium text-foreground/80">Follow</span>
             <a
               href={`https://twitter.com/${String(twitter).replace(/^@/, "")}`}
               target="_blank"

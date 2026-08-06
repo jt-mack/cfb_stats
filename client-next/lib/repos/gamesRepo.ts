@@ -1,5 +1,5 @@
 import { get } from "../apiClient";
-import type { GameWithOdds, GameDetail } from "../types";
+import type { GameWithOdds, GameDetail, GamePreview } from "../types";
 
 /**
  * Team schedule with optional odds (backend: GET /schedule/:team_name).
@@ -20,4 +20,14 @@ export async function getSchedule(
  */
 export async function getGameDetail(gameId: number): Promise<GameDetail> {
   return get<GameDetail>(`/games/${gameId}`);
+}
+
+/**
+ * Game preview for upcoming or completed games (backend: GET /preview/:id).
+ */
+export async function getGamePreview(
+  gameId: number,
+  season?: number
+): Promise<GamePreview> {
+  return get<GamePreview>(`/preview/${gameId}`, season !== undefined ? { season } : undefined);
 }

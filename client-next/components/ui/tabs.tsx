@@ -78,7 +78,7 @@ function TabsContent({
 }: React.ComponentProps<typeof TabsPrimitive.Content>) {
   return (
     <TabsPrimitive.Content
-      className={cn("flex-1 outline-none", className)}
+      className={cn("flex-1 outline-none data-[state=inactive]:hidden", className)}
       {...props}
     />
   )
