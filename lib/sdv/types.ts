@@ -24,11 +24,16 @@ export interface SdvEspnTeam {
   alternateColor?: string;
   isActive?: boolean;
   rank?: number;
+  standingSummary?: string;
   logos?: { href?: string }[];
   links?: unknown[];
-  groups?: { id?: string; name?: string; shortName?: string }[];
+  /** ESPN may return groups as an object (`{ id }`) or as an array of groups. */
+  groups?:
+    | { id?: string; name?: string; shortName?: string }
+    | { id?: string; name?: string; shortName?: string }[];
   coach?: { firstName?: string; lastName?: string };
   record?: { items?: { summary?: string; displayValue?: string }[] };
+  nextEvent?: Array<{ id?: string | number; name?: string; date?: string }>;
 }
 
 export interface SdvPredictiveMetric {
@@ -297,3 +302,36 @@ export type SdvTeamInfoResponse = SdvTeamResponse & {
     }>;
   };
 };
+
+export interface SdvSeasonTypeInfo {
+  id?: string | number;
+  type?: number;
+  name?: string;
+  abbreviation?: string;
+  year?: number;
+  startDate?: string;
+  endDate?: string;
+  hasStandings?: boolean;
+  slug?: string;
+  week?: {
+    number?: number;
+    startDate?: string;
+    endDate?: string;
+    text?: string;
+  };
+}
+
+/** Raw response from `espnCfbSeasonInfo({ season })` (Core seasons/{year}). */
+export interface SdvSeasonInfo {
+  year?: number;
+  startDate?: string;
+  endDate?: string;
+  displayName?: string;
+  type?: SdvSeasonTypeInfo;
+  types?: {
+    count?: number;
+    items?: SdvSeasonTypeInfo[];
+  };
+  rankings?: { '$ref'?: string };
+  leaders?: { '$ref'?: string };
+}

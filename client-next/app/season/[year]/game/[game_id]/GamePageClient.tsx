@@ -58,6 +58,8 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
     const datasets = preview.advancedSeasonStats.slice(0, 2).map((s) => ({
       label: s.team,
       data: [s.offenseEfficiency ?? 0, s.defenseEfficiency ?? 0],
+      backgroundColor: s.color ?? undefined,
+      borderColor: s.alternateColor ?? s.color ?? undefined,
     }));
     return { labels, datasets };
   }, [preview?.advancedSeasonStats]);
@@ -124,8 +126,13 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   const boxScoreDatasets = teams.map((t) => ({
     label: t.team,
     data: (t.stats ?? []).map((s) => parseFloat(s.stat) || 0),
+    backgroundColor: t.color ?? undefined,
+    borderColor: t.alternateColor ?? t.color ?? undefined,
   }));
 
+  const homeTeamStats = teams.find((t) => t.homeAway === "home");
+  const homeFromAdv = preview.advancedSeasonStats?.find((s) => s.team === game.homeTeam);
+  const homeColor = homeTeamStats?.color ?? homeFromAdv?.color ?? "#71717a";
   const homeWinProb = preview.odds?.homeWinProbability ?? null;
   const spread = preview.odds?.spread ?? preview.lines?.lines?.[0]?.spread ?? null;
   const overUnder = preview.lines?.lines?.[0]?.overUnder;
@@ -220,7 +227,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
                   logoUrl=""
                   percentage={(Number(homeWinProb) * 100).toFixed(2)}
                   size={200}
-                  color="#71717a"
+                  color={homeColor}
                 />
               </>
             )}

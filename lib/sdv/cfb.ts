@@ -5,8 +5,7 @@
  * @see https://js.sportsdataverse.org/docs/reference/cfb
  */
 import { getCfb, getDefaultSeason, sdvRequest, type SdvRequestOptions } from './client';
-import { FBS_GROUP, REGULAR_SEASON_TYPE } from './constants';
-import { normalizeRankingsPayload } from './rankings';
+import { FBS_GROUP, REGULAR_SEASON_TYPE, POSTSEASON_SEASON_TYPE } from './constants';
 import type {
   SdvCfbPicks,
   SdvCfbSummary,
@@ -21,6 +20,7 @@ import type {
   SdvStandingsResponse,
   SdvTeamResponse,
   SdvTeamScheduleResponse,
+  SdvSeasonInfo,
 } from './types';
 
 export type ScoreboardParams = {
@@ -191,6 +191,18 @@ export function fetchSeasonPowerIndex(
   });
 }
 
+/** Core season metadata: phase windows, active type, start/end dates. */
+export function fetchSeasonInfo(season: number, options?: SdvRequestOptions): Promise<SdvSeasonInfo> {
+  return sdvRequest(async () => {
+    const cfb = await getCfb();
+    return (await cfb.espnCfbSeasonInfo({ season })) as SdvSeasonInfo;
+  }, {
+    cacheKey: `seasonInfo:${season}`,
+    cacheTtlMs: options?.cacheTtlMs ?? 60 * 60 * 1000,
+    timeoutMs: options?.timeoutMs,
+  });
+}
+
 export type SeasonWeekInfo = {
   week: number;
   startDate: string;
@@ -266,19 +278,99 @@ export function fetchParsedRankings(
       return (await cfb.espnCfbRankings({})) as Record<string, unknown>;
     }
 
-    // Historical seasons: CDN rankings accept year (site rankings endpoint does not).
-    // Legacy SDV typings mark week required; runtime treats it as optional.
-    const getRankings = cfb.getRankings as (params: {
-      year?: number;
-      week?: number;
-    }) => Promise<unknown>;
-    const raw = (await getRankings({ year: season })) as Record<string, unknown>;
-    return normalizeRankingsPayload(raw);
+    // Legacy getRankings CDN returns HTML now — use Core week ranking refs instead.
+    return fetchHistoricalRankingsFromCore(season);
   }, {
     cacheKey: options?.cacheKey ?? `espnRankings:${season}`,
     cacheTtlMs: options?.cacheTtlMs ?? 15 * 60 * 1000,
     timeoutMs: options?.timeoutMs,
   });
+}
+
+/**
+ * Resolve AP/Coaches (etc.) polls for a past season via espnCfbSeasonWeekRankings
+ * + Core ranking detail URLs. Tries postseason weeks first, then regular season.
+ */
+async function fetchHistoricalRankingsFromCore(season: number): Promise<Record<string, unknown>> {
+  const cfb = await getCfb();
+  const candidates: Array<{ seasonType: number; week: number }> = [];
+  for (let week = 5; week >= 1; week -= 1) candidates.push({ seasonType: POSTSEASON_SEASON_TYPE, week });
+  for (let week = 16; week >= 1; week -= 1) candidates.push({ seasonType: REGULAR_SEASON_TYPE, week });
+
+  let items: Array<{ '$ref'?: string }> = [];
+  let used = { seasonType: REGULAR_SEASON_TYPE, week: 1 };
+
+  for (const candidate of candidates) {
+    try {
+      const list = (await cfb.espnCfbSeasonWeekRankings({
+        season,
+        season_type: candidate.seasonType,
+        week: candidate.week,
+      })) as { items?: Array<{ '$ref'?: string }>; count?: number };
+      if (list?.items?.length) {
+        items = list.items;
+        used = candidate;
+        break;
+      }
+    } catch {
+      // try earlier week / other season type
+    }
+  }
+
+  if (!items.length) return { rankings: [] };
+
+  const axios = (await import('axios')).default;
+  const rankings: Record<string, unknown>[] = [];
+
+  for (const item of items) {
+    const ref = item['$ref']?.replace('sports.core.api.espn.pvt', 'sports.core.api.espn.com');
+    if (!ref) continue;
+    try {
+      const res = await axios.get(ref, { timeout: 8_000 });
+      const detail = res.data as {
+        name?: string;
+        shortName?: string;
+        type?: string | number;
+        ranks?: Array<Record<string, unknown>>;
+      };
+
+      const typeRaw = detail.type;
+      const name = String(detail.name ?? '');
+      let type = typeRaw != null ? String(typeRaw) : '';
+      if (!type || /^\d+$/.test(type)) {
+        if (name.includes('AP')) type = 'ap';
+        else if (/coach/i.test(name)) type = 'coaches';
+        else if (/playoff|cfp|committee/i.test(name)) type = 'cfp';
+      }
+
+      rankings.push({
+        name: detail.name,
+        shortName: detail.shortName,
+        type,
+        ranks: (detail.ranks ?? []).map((rank) => {
+          const team = rank.team as { id?: string | number; '$ref'?: string } | undefined;
+          const teamId = team?.id ?? idFromRef(team?.['$ref'], 'teams');
+          const record = rank.record as { summary?: string } | undefined;
+          return {
+            ...rank,
+            team: { ...team, id: teamId ?? undefined },
+            recordSummary: record?.summary ?? rank.recordSummary,
+          };
+        }),
+      });
+    } catch (err) {
+      console.warn(
+        `Historical ranking ref failed (${ref}):`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  return {
+    rankings,
+    latestSeason: { year: season, type: { type: used.seasonType } },
+    latestWeek: { number: used.week, displayValue: `Week ${used.week}` },
+  };
 }
 
 // ---------------------------------------------------------------------------

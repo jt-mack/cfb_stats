@@ -13,6 +13,8 @@ export {
   FCS_GROUP,
   REGULAR_SEASON_TYPE,
   POSTSEASON_SEASON_TYPE,
+  PRESEASON_SEASON_TYPE,
+  OFFSEASON_SEASON_TYPE,
   MAIN_CONFERENCE_IDS,
   FBS_CONFERENCES,
   FBS_CONFERENCE_BY_ID,
@@ -28,6 +30,7 @@ export {
   fetchRawStandings,
   fetchStandings,
   fetchSeasonPowerIndex,
+  fetchSeasonInfo,
   fetchParsedRankings,
   fetchSeasonWeeks,
   fetchGameSummaryRaw,
@@ -98,4 +101,6 @@ export type {
   SdvTeamResponse,
   SdvTeamInfoResponse,
   SdvTeamScheduleResponse,
+  SdvSeasonInfo,
+  SdvSeasonTypeInfo,
 } from './types';

@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { TeamsRepo } from '../repos/teams-repo';
+import { teamIndex } from '../lib/team-index';
 import { cachedJson, parseSeasonQuery } from '../lib/route-helpers';
 import { routeCache } from '../lib/cache';
 
@@ -31,16 +32,11 @@ router.get('/team/:team_id/players', async (req: Request, res: Response) => {
   const season = parseSeasonQuery(req.query.season);
   if (season == null) return res.status(400).json({ error: 'Invalid season' });
 
-  let teamName = teamId;
-  const idNum = Number(teamId);
-  if (!Number.isNaN(idNum)) {
-    const team = await teamsRepo.getTeamInfo(teamId, season);
-    if (!team) return res.status(404).json({ error: 'Team not found' });
-    teamName = team.school;
-  }
+  const school = await teamIndex.resolveSchoolName(teamId, season);
+  if (!school) return res.status(404).json({ error: 'Team not found' });
 
   const cacheKey = `roster_${teamId}_${season}`;
-  await cachedJson(res, cacheKey, 3600, () => teamsRepo.getRoster(teamName, season));
+  await cachedJson(res, cacheKey, 3600, () => teamsRepo.getRoster(school, season));
 });
 
 router.get('/team/:team_id/coaches', async (req: Request, res: Response) => {
@@ -48,16 +44,11 @@ router.get('/team/:team_id/coaches', async (req: Request, res: Response) => {
   const season = parseSeasonQuery(req.query.season);
   if (season == null) return res.status(400).json({ error: 'Invalid season' });
 
-  let teamName = teamId;
-  const idNum = Number(teamId);
-  if (!Number.isNaN(idNum)) {
-    const team = await teamsRepo.getTeamInfo(teamId, season);
-    if (!team) return res.status(404).json({ error: 'Team not found' });
-    teamName = team.school;
-  }
+  const school = await teamIndex.resolveSchoolName(teamId, season);
+  if (!school) return res.status(404).json({ error: 'Team not found' });
 
   const cacheKey = `coaches_${teamId}_${season}`;
-  await cachedJson(res, cacheKey, 3600, () => teamsRepo.getCoaches(teamName, season));
+  await cachedJson(res, cacheKey, 3600, () => teamsRepo.getCoaches(school, season));
 });
 
 export default router;

@@ -11,6 +11,12 @@ export type SeasonContext = {
   firstGameDate: string | null;
   hasPublishedRankings: boolean;
   rankingsWeek: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  /** True when now is within this season's ESPN start/end and it is the default season. */
+  isActive: boolean;
+  activeTypeName: string | null;
+  activeTypeId: number | null;
 };
 
 export async function getDefaultSeasonFromApi(): Promise<number> {

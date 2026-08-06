@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import type { Conference, TeamRecords } from "@/lib/types";
+import type { Conference, GameWithOdds, TeamRecords } from "@/lib/types";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import {
@@ -12,6 +12,7 @@ import {
   useStandings,
   useTeamRatings,
   useConferences,
+  useSchedule,
 } from "@/lib/hooks/queries";
 import { TeamCard } from "@/components/cards/TeamCard";
 import { TeamDetails } from "@/components/views/TeamDetails";
@@ -20,6 +21,9 @@ import { PreseasonBanner } from "@/components/ui/LineScoreTable";
 import { formatSeasonDate } from "@/lib/seasonHelpers";
 import { cn } from "@/lib/utils";
 import { TEAM_TABS, TeamPageProvider, type TeamTabSlug } from "./TeamPageContext";
+import { useActiveSeason } from "@/context/GlobalStateContext";
+import { isFeatureEnabled } from "@/lib/activeSeasonFeatures";
+import { teamCssVars, teamStyleFromColors, withAlpha } from "@/lib/teamColors";
 
 function resolveConference(conferenceId: string, conferences: Conference[]): Conference | undefined {
   const normalized = conferenceId.toLowerCase();
@@ -37,6 +41,17 @@ function getActiveTab(pathname: string, basePath: string): TeamTabSlug {
   return match?.slug ?? "overview";
 }
 
+function deriveNextGame(
+  schedule: GameWithOdds[],
+  nextEventId: number | null | undefined
+): GameWithOdds | null {
+  if (nextEventId != null) {
+    const matched = schedule.find((g) => g.id === nextEventId);
+    if (matched) return matched;
+  }
+  return schedule.find((g) => !g.completed) ?? null;
+}
+
 type TeamLayoutClientProps = {
   children: React.ReactNode;
 };
@@ -49,6 +64,7 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
   const { data: team, isLoading: teamLoading, isError: teamError } = useTeamInfo(teamId, seasonNum);
   const { data: seasonContext } = useSeasonContext(seasonNum);
   const { data: conferences = [] } = useConferences();
+  const activeSeason = useActiveSeason();
 
   const conference = useMemo(
     () => (team?.conference ? resolveConference(team.conference, conferences) : undefined),
@@ -58,13 +74,31 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
   const confAbbr = conference?.abbreviation ?? team?.conference ?? undefined;
   const { data: standings } = useStandings(confAbbr, seasonNum);
   const { data: ratings } = useTeamRatings(seasonNum, team?.school);
+  const { data: schedule = [] } = useSchedule(team?.school, seasonNum);
 
-  const style = useMemo(() => {
-    if (!team) return {};
-    const rawColor = (team.color ?? "000000").toString().replace(/^#/, "");
-    const rawAlt = (team.alternateColor ?? "ffffff").toString().replace(/^#/, "");
-    return { color: `#${rawColor}`, backgroundColor: `#${rawAlt}` };
-  }, [team]);
+  const style = useMemo(
+    () => teamStyleFromColors(team?.color, team?.alternateColor),
+    [team?.color, team?.alternateColor]
+  );
+
+  const cssVars = useMemo(() => teamCssVars(style), [style]);
+
+  const nextGame = useMemo(
+    () => deriveNextGame(schedule, team?.nextEvent?.id),
+    [schedule, team?.nextEvent?.id]
+  );
+
+  const recordStr = useMemo(() => {
+    if (team?.recordSummary) return team.recordSummary;
+    if (standings && team) {
+      const r = standings.find((rec: TeamRecords) => rec.teamId === team.id || rec.team === team.school);
+      if (seasonContext?.phase === "preseason" && (!r?.total?.games || r.total.games === 0)) {
+        return "0-0 (Preseason)";
+      }
+      if (r?.total) return `${r.total.wins}-${r.total.losses}`;
+    }
+    return seasonContext?.phase === "preseason" ? "0-0 (Preseason)" : "0-0";
+  }, [team, standings, seasonContext?.phase]);
 
   if (!year || !teamId || !isValidSeason) {
     return <PageError message="Invalid route." />;
@@ -79,18 +113,6 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
   const basePath = `/season/${year}/team/${teamId}`;
   const activeTab = getActiveTab(pathname, basePath);
   const favorite = getFavorite(team.id);
-  const recordStr = standings
-    ? (() => {
-        const r = standings.find((rec: TeamRecords) => rec.teamId === team.id || rec.team === team.school);
-        if (seasonContext?.phase === "preseason" && (!r?.total?.games || r.total.games === 0)) {
-          return "0-0 (Preseason)";
-        }
-        return r?.total ? `${r.total.wins}-${r.total.losses}` : "0-0";
-      })()
-    : seasonContext?.phase === "preseason"
-      ? "0-0 (Preseason)"
-      : "0-0";
-
   const title = team.mascot ? `${team.school} ${team.mascot}` : team.school;
   const ratingChip = ratings?.fpi?.ranking
     ? `${ratings.fpi.label ?? "ESPN FPI"} #${ratings.fpi.ranking}`
@@ -100,8 +122,17 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
       ? `${ratings.ats.covers}-${ratings.ats.games - ratings.ats.covers} ATS`
       : null;
 
+  const visibleTabs = TEAM_TABS.filter((tab) => {
+    if (tab.slug === "news") return isFeatureEnabled("teamNews", seasonNum, activeSeason);
+    if (tab.slug === "roster") return isFeatureEnabled("roster", seasonNum, activeSeason);
+    if (tab.slug === "depth") return isFeatureEnabled("depthChart", seasonNum, activeSeason);
+    return true;
+  });
+
+  const primary = style.color ?? "#18181b";
+
   return (
-    <div className="space-y-4 min-w-0">
+    <div className="space-y-4 min-w-0" style={cssVars}>
       {seasonContext?.phase === "preseason" && (
         <PreseasonBanner
           year={year}
@@ -127,9 +158,13 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
         <TeamDetails team={team} conferenceName={conference?.name} />
         <nav
           aria-label="Team sections"
-          className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 bg-zinc-800 border border-zinc-700 text-zinc-300 gap-0.5 sm:gap-1 rounded-lg p-1"
+          className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0.5 sm:gap-1 rounded-lg p-1"
+          style={{
+            backgroundColor: withAlpha(primary, 0.12),
+            border: `1px solid ${withAlpha(primary, 0.35)}`,
+          }}
         >
-          {TEAM_TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActive = activeTab === tab.slug;
             return (
               <Link
@@ -139,15 +174,35 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
                 className={cn(
                   "inline-flex flex-1 items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors",
                   tab.wideOnMobile && "col-span-2 sm:col-span-1",
-                  isActive ? "bg-zinc-700 text-zinc-100 shadow-sm" : "text-zinc-300 hover:text-zinc-100"
+                  !isActive && "text-zinc-300 hover:text-zinc-100"
                 )}
+                style={
+                  isActive
+                    ? {
+                        backgroundColor: primary,
+                        color: "var(--team-on-primary)",
+                        boxShadow: `0 1px 2px ${withAlpha(primary, 0.4)}`,
+                      }
+                    : undefined
+                }
               >
                 {tab.label}
               </Link>
             );
           })}
         </nav>
-        <TeamPageProvider value={{ year, team, conference, style }}>
+        <TeamPageProvider
+          value={{
+            year,
+            team,
+            conference,
+            style,
+            schedule,
+            standings,
+            nextGame,
+            recordStr,
+          }}
+        >
           <div className="mt-4">{children}</div>
         </TeamPageProvider>
       </TeamCard>

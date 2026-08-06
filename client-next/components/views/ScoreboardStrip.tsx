@@ -28,7 +28,8 @@ export function ScoreboardStrip({
     phase,
     currentWeek,
     enabled,
-    defaultSeason
+    defaultSeason,
+    seasonContext?.isActive
   );
   const games = Array.isArray(data) ? data.slice(0, 8) : [];
 

@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { withAlpha } from "@/lib/teamColors";
 
 export type StandingsRow = {
   id: number;
@@ -34,9 +35,13 @@ export function StandingsTable({
 }: StandingsTableProps) {
   const router = useRouter();
   const activeId = activeTeamId != null ? String(activeTeamId) : null;
+  const primary = activeTeamStyle.color ?? "#0ea5e9";
 
   return (
-    <div className="rounded-md border border-zinc-700 overflow-x-auto -mx-3 sm:mx-0">
+    <div
+      className="rounded-md border overflow-x-auto -mx-3 sm:mx-0"
+      style={{ borderColor: withAlpha(primary, 0.4) }}
+    >
       <Table className="min-w-[320px]">
         <TableHeader>
           <TableRow className="border-zinc-700 hover:bg-transparent">
@@ -53,10 +58,15 @@ export function StandingsTable({
             return (
               <TableRow
                 key={row.id}
-                className={`border-zinc-700 cursor-pointer hover:bg-zinc-800 active:bg-zinc-700 ${
-                  isActive ? "bg-sky-500/20" : ""
-                }`}
-                style={isActive ? activeTeamStyle : undefined}
+                className="border-zinc-700 cursor-pointer hover:bg-zinc-800 active:bg-zinc-700"
+                style={
+                  isActive
+                    ? {
+                        backgroundColor: withAlpha(primary, 0.28),
+                        boxShadow: `inset 3px 0 0 ${primary}`,
+                      }
+                    : undefined
+                }
                 onClick={() => router.push(`/season/${season}/team/${row.id}`)}
               >
                 <TableCell className="w-8 sm:w-10 text-zinc-400 text-xs sm:text-sm py-2 sm:py-3">
@@ -76,7 +86,9 @@ export function StandingsTable({
                     <span className="text-zinc-500">—</span>
                   )}
                 </TableCell>
-                <TableCell className="font-medium text-zinc-100 text-sm sm:text-base py-2 sm:py-3 min-w-0">
+                <TableCell
+                  className={`font-medium text-sm sm:text-base py-2 sm:py-3 min-w-0 ${isActive ? "text-zinc-50" : "text-zinc-100"}`}
+                >
                   {row.name}
                 </TableCell>
                 <TableCell className="text-zinc-400 text-xs sm:text-sm py-2 sm:py-3 whitespace-nowrap">

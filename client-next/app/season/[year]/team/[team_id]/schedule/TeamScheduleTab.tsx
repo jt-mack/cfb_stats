@@ -2,14 +2,13 @@
 
 import { useMemo } from "react";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
-import { useSchedule, useScheduleEnrichment } from "@/lib/hooks/queries";
+import { useScheduleEnrichment } from "@/lib/hooks/queries";
 import { Schedule } from "@/components/tables/Schedule";
 import { useTeamPage } from "../TeamPageContext";
 
 export default function TeamScheduleTab() {
   const { seasonNum } = useSeasonParams();
-  const { year, team, conference, style } = useTeamPage();
-  const { data: schedule = [] } = useSchedule(team.school, seasonNum);
+  const { year, team, conference, style, schedule } = useTeamPage();
   const { data: enrichment = [] } = useScheduleEnrichment(team.school, seasonNum, Boolean(team.school));
 
   const enrichmentMap = useMemo(() => {

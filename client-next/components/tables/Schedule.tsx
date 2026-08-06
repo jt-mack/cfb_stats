@@ -17,6 +17,7 @@ import type { GameWithOdds } from "@/lib/types";
 import type { Conference } from "@/lib/types";
 import type { Team } from "@/lib/types";
 import type { GameEnrichment } from "@/lib/repos/extrasRepo";
+import { withAlpha } from "@/lib/teamColors";
 
 function isHomeTeam(game: GameWithOdds, teamSchool: string | undefined) {
   return game.homeTeam === teamSchool;
@@ -78,20 +79,33 @@ export function Schedule({
   enrichmentByGameId,
 }: ScheduleProps) {
   const teamSchool = team?.school;
+  const primary = style.color ?? "#71717a";
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
       {schedule?.map((game, index) => {
-        const borderColor = game.neutralSite
-          ? "border-amber-500/50"
-          : isHomeTeam(game, teamSchool)
-            ? "border-zinc-600"
-            : "border-red-500/50";
+        const isHome = isHomeTeam(game, teamSchool);
+        const borderStyle = game.neutralSite
+          ? { borderColor: "rgba(245, 158, 11, 0.5)" }
+          : isHome
+            ? { borderColor: primary }
+            : { borderColor: withAlpha(primary, 0.35) };
         return (
           <Card
             key={game.id ?? index}
-            className={`overflow-hidden border ${borderColor} bg-zinc-800 min-w-0 ${season && game.id ? "cursor-pointer hover:bg-zinc-700 transition-colors" : ""}`}
+            className={`overflow-hidden border-2 bg-zinc-800 min-w-0 ${season && game.id ? "cursor-pointer hover:bg-zinc-700/80 transition-colors" : ""}`}
+            style={borderStyle}
           >
+            <div
+              className="h-1 w-full"
+              style={{
+                backgroundColor: game.neutralSite
+                  ? "rgb(245, 158, 11)"
+                  : isHome
+                    ? primary
+                    : withAlpha(primary, 0.45),
+              }}
+            />
             {season && game.id ? (
               <Link href={`/season/${season}/game/${game.id}`} className="block">
                 <ScheduleCardInner

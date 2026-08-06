@@ -20,6 +20,12 @@ export interface TeamLocation {
   dome?: boolean;
 }
 
+export interface TeamNextEvent {
+  id: number;
+  name: string;
+  date: string;
+}
+
 export interface Team {
   id: number;
   school: string;
@@ -35,6 +41,11 @@ export interface Team {
   alternateNames?: string[] | null;
   location?: TeamLocation | null;
   links?: { href: string; text: string }[] | null;
+  recordSummary?: string | null;
+  rank?: number | null;
+  standingSummary?: string | null;
+  conferenceGroupId?: string | null;
+  nextEvent?: TeamNextEvent | null;
 }
 
 export interface FbsTeamWithRank extends Team {
@@ -125,6 +136,8 @@ export interface GameTeamStatEntry {
     team: string;
     homeAway: string;
     points: number | null;
+    color?: string | null;
+    alternateColor?: string | null;
     stats: { category: string; stat: string }[];
   }[];
 }
@@ -178,6 +191,8 @@ export interface GamePreview {
     season: number;
     offenseEfficiency: number;
     defenseEfficiency: number;
+    color?: string | null;
+    alternateColor?: string | null;
   }[];
   playerSeasonStats: {
     playerId: string;

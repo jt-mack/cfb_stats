@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Heart } from "lucide-react";
+import { contrastText, withAlpha, type TeamStyle } from "@/lib/teamColors";
 
 type TeamCardProps = {
   id: number;
@@ -20,14 +21,13 @@ type TeamCardProps = {
   favorite?: { id: number; name: string } | false;
   onToggleFavorite: () => void;
   links?: { href: string; text: string }[];
-  customStyle?: { color?: string; backgroundColor?: string };
+  customStyle?: TeamStyle;
   ratingChip?: string | null;
   atsChip?: string | null;
   children: React.ReactNode;
 };
 
 export function TeamCard({
-  id,
   title,
   record,
   logo,
@@ -40,11 +40,19 @@ export function TeamCard({
   atsChip,
   children,
 }: TeamCardProps) {
+  const primary = customStyle.color ?? "#18181b";
+  const secondary = customStyle.backgroundColor ?? "#a1a1aa";
+  const onPrimary = contrastText(primary);
+
   return (
-    <Card className="mb-4 border-0 overflow-hidden border-zinc-700 bg-zinc-800 text-zinc-100">
+    <Card className="mb-4 border-0 overflow-hidden bg-zinc-800 text-zinc-100 shadow-lg">
       <CardHeader
-        className="py-3 px-3 sm:px-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 flex-wrap"
-        style={customStyle}
+        className="py-3 px-3 sm:px-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-4 flex-wrap border-b"
+        style={{
+          backgroundColor: primary,
+          color: onPrimary,
+          borderBottomColor: withAlpha(secondary, 0.5),
+        }}
       >
         <div className="flex items-center gap-3 w-full sm:w-auto sm:min-w-0 sm:flex-1 justify-center sm:justify-start order-1">
           {logo ? (
@@ -53,29 +61,45 @@ export function TeamCard({
               alt={title}
               width={40}
               height={40}
-              className="object-contain shrink-0 w-10 h-10 sm:w-12 sm:h-12"
+              className="object-contain shrink-0 w-10 h-10 sm:w-12 sm:h-12 drop-shadow"
               unoptimized
             />
           ) : null}
-          <h2 className="text-base sm:text-lg font-semibold text-center sm:text-left text-zinc-100 [text-shadow:0_0_2px_rgba(0,0,0,0.5)] truncate min-w-0">
+          <h2
+            className="text-base sm:text-lg font-semibold text-center sm:text-left truncate min-w-0"
+            style={{ color: onPrimary }}
+          >
             {title}{" "}
-            <span className="text-zinc-400 font-normal">({record})</span>
+            <span className="font-normal opacity-80">({record})</span>
             {ratingChip && (
-              <span className="ml-2 text-xs font-normal text-zinc-300 bg-zinc-900/50 px-2 py-0.5 rounded">
+              <span
+                className="ml-2 text-xs font-normal px-2 py-0.5 rounded"
+                style={{
+                  backgroundColor: withAlpha(secondary, 0.85),
+                  color: contrastText(secondary),
+                }}
+              >
                 {ratingChip}
               </span>
             )}
             {atsChip && (
-              <span className="ml-1 text-xs font-normal text-zinc-400">
-                ATS {atsChip}
-              </span>
+              <span className="ml-1 text-xs font-normal opacity-75">{atsChip}</span>
             )}
           </h2>
         </div>
         <div className="flex items-center gap-2 shrink-0 order-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="border-zinc-600 bg-zinc-700/50 text-zinc-100 hover:bg-zinc-600 text-xs sm:text-sm" style={customStyle}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs sm:text-sm border-2 hover:opacity-90"
+                style={{
+                  borderColor: secondary,
+                  backgroundColor: withAlpha(secondary, 0.25),
+                  color: onPrimary,
+                }}
+              >
                 Team Links
               </Button>
             </DropdownMenuTrigger>
@@ -93,7 +117,8 @@ export function TeamCard({
             <Button
               variant="secondary"
               size="icon"
-              className="bg-zinc-700 text-red-400 hover:bg-zinc-600 size-8 sm:size-9"
+              className="size-8 sm:size-9 hover:opacity-90"
+              style={{ backgroundColor: withAlpha(secondary, 0.35) }}
               onClick={onToggleFavorite}
               aria-label="Remove from favorites"
             >
@@ -103,7 +128,12 @@ export function TeamCard({
             <Button
               variant="outline"
               size="icon"
-              className="border-zinc-600 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 size-8 sm:size-9"
+              className="size-8 sm:size-9 border-2 hover:opacity-90"
+              style={{
+                borderColor: secondary,
+                color: onPrimary,
+                backgroundColor: withAlpha(secondary, 0.15),
+              }}
               onClick={onToggleFavorite}
               aria-label="Add to favorites"
             >
@@ -112,7 +142,10 @@ export function TeamCard({
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-2 px-3 sm:px-6 bg-zinc-800 text-zinc-100 overflow-x-hidden">
+      <CardContent
+        className="pt-2 px-3 sm:px-6 bg-zinc-800 text-zinc-100 overflow-x-hidden"
+        style={{ boxShadow: `inset 0 3px 0 ${withAlpha(primary, 0.45)}` }}
+      >
         {conferenceLogo ? (
           <div className="flex justify-center pb-2">
             <Image

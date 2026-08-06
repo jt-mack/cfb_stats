@@ -10,6 +10,12 @@ export const REGULAR_SEASON_TYPE = 2;
 /** Postseason seasontype on ESPN scoreboard API. */
 export const POSTSEASON_SEASON_TYPE = 3;
 
+/** Preseason seasontype on ESPN Core season API. */
+export const PRESEASON_SEASON_TYPE = 1;
+
+/** Off-season seasontype on ESPN Core season API. */
+export const OFFSEASON_SEASON_TYPE = 4;
+
 /** Power conferences surfaced in quick-links (ACC, Big 12, Big Ten, SEC). */
 export const MAIN_CONFERENCE_IDS = new Set([1, 4, 5, 8]);
 

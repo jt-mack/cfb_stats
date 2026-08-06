@@ -120,6 +120,30 @@ export function parsePowerIndexRow(row: SdvParsedPowerIndexRow): {
   }
 }
 
+function resolveEspnGroups(groups: SdvEspnTeam['groups']): {
+  id?: string;
+  name?: string;
+  shortName?: string;
+} | undefined {
+  if (!groups) return undefined;
+  if (Array.isArray(groups)) return groups[0];
+  return groups;
+}
+
+function mapEspnNextEvent(
+  nextEvent: SdvEspnTeam['nextEvent']
+): Team['nextEvent'] {
+  const first = nextEvent?.[0];
+  if (!first) return null;
+  const id = num(first.id);
+  if (id == null) return null;
+  return {
+    id,
+    name: first.name ?? '',
+    date: first.date ?? '',
+  };
+}
+
 export function mapEspnTeamToTeam(espn: SdvEspnTeam, conference?: string | null): Team {
   const id = num(espn.id) ?? 0;
   const school = espn.location ?? espn.nickname ?? espn.displayName ?? 'Unknown';
@@ -141,12 +165,17 @@ export function mapEspnTeamToTeam(espn: SdvEspnTeam, conference?: string | null)
     .filter((l) => l.href)
     .map((l) => ({ href: l.href!, text: l.text ?? l.rel?.[0] ?? 'Link' }));
 
+  const group = resolveEspnGroups(espn.groups);
+  const recordSummary =
+    espn.record?.items?.[0]?.summary ?? espn.record?.items?.[0]?.displayValue ?? null;
+  const rank = espn.rank != null && espn.rank > 0 ? espn.rank : null;
+
   return {
     id,
     school,
     mascot: espn.name ?? null,
     abbreviation: espn.abbreviation ?? null,
-    conference: conference ?? espn.groups?.[0]?.shortName ?? espn.groups?.[0]?.name ?? null,
+    conference: conference ?? group?.shortName ?? group?.name ?? null,
     division: null,
     classification: 'fbs',
     color: espn.color ? `#${espn.color.replace('#', '')}` : null,
@@ -155,6 +184,11 @@ export function mapEspnTeamToTeam(espn: SdvEspnTeam, conference?: string | null)
     twitter: (espn as { twitter?: string }).twitter ?? null,
     location,
     links: links.length ? links : null,
+    recordSummary,
+    rank,
+    standingSummary: espn.standingSummary ?? null,
+    conferenceGroupId: group?.id != null ? String(group.id) : null,
+    nextEvent: mapEspnNextEvent(espn.nextEvent),
   };
 }
 
@@ -463,16 +497,40 @@ export function mapSummaryToGameDetail(summary: SdvCfbSummary): GameDetail {
 
   if (boxScore?.teams) {
     const teams = boxScore.teams as Record<string, unknown>[];
+    const competitors = (comp?.competitors as Record<string, unknown>[] | undefined) ?? [];
+    const colorByHomeAway = new Map<string, { color?: string; alternateColor?: string }>();
+    for (const c of competitors) {
+      const t = c.team as SdvEspnTeam | undefined;
+      const ha = String(c.homeAway ?? '');
+      if (t && ha) {
+        colorByHomeAway.set(ha, {
+          color: t.color ? `#${String(t.color).replace('#', '')}` : undefined,
+          alternateColor: t.alternateColor
+            ? `#${String(t.alternateColor).replace('#', '')}`
+            : undefined,
+        });
+      }
+    }
     teamStats.push({
       id: gameId,
       teams: teams.map((t) => {
         const teamInfo = t.team as SdvEspnTeam;
         const stats = (t.statistics as { name?: string; displayValue?: string; label?: string }[] | undefined) ?? [];
+        const homeAway = String(t.homeAway ?? '');
+        const fromComp = colorByHomeAway.get(homeAway);
+        const color = teamInfo.color
+          ? `#${String(teamInfo.color).replace('#', '')}`
+          : fromComp?.color ?? null;
+        const alternateColor = teamInfo.alternateColor
+          ? `#${String(teamInfo.alternateColor).replace('#', '')}`
+          : fromComp?.alternateColor ?? null;
         return {
           teamId: num(teamInfo.id) ?? 0,
           team: teamInfo.location ?? teamInfo.displayName ?? '',
-          homeAway: String(t.homeAway ?? ''),
+          homeAway,
           points: num((t as { score?: unknown }).score),
+          color,
+          alternateColor,
           stats: stats.map((s) => ({ category: s.name ?? s.label ?? '', stat: s.displayValue ?? '' })),
         };
       }),

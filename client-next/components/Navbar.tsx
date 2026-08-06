@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useGlobalState } from "@/context/GlobalStateContext";
+import { useGlobalState, useActiveSeason } from "@/context/GlobalStateContext";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { SeasonSelect } from "@/components/selects/SeasonSelect";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getDefaultSeason } from "@/lib/seasonHelpers";
+import { isFeatureEnabled } from "@/lib/activeSeasonFeatures";
 import { Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -22,24 +23,31 @@ function parseYearFromPath(pathname: string): string | null {
 }
 
 const PRIMARY_LINKS = [
-  { label: "Home", href: (y: string) => `/season/${y}` },
-  { label: "Scores", href: (y: string) => `/season/${y}/scores` },
-  { label: "Standings", href: (y: string) => `/season/${y}/standings` },
-  { label: "Rankings", href: (y: string) => `/season/${y}/rankings` },
-  { label: "Statistics", href: (y: string) => `/season/${y}/stats` },
-  { label: "News", href: (y: string) => `/season/${y}/news` },
+  { label: "Home", href: (y: string) => `/season/${y}`, feature: null },
+  { label: "Scores", href: (y: string) => `/season/${y}/scores`, feature: null },
+  { label: "Standings", href: (y: string) => `/season/${y}/standings`, feature: null },
+  { label: "Rankings", href: (y: string) => `/season/${y}/rankings`, feature: null },
+  { label: "Statistics", href: (y: string) => `/season/${y}/stats`, feature: null },
+  { label: "News", href: (y: string) => `/season/${y}/news`, feature: "news" as const },
 ] as const;
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { globalState, setLastUsedSeason } = useGlobalState();
+  const activeSeason = useActiveSeason();
   const { favorites, hydrated } = useFavorites();
 
   const yearFromPath = useMemo(() => parseYearFromPath(pathname ?? ""), [pathname]);
   const defaultSeason = getDefaultSeason();
   const season = yearFromPath ?? globalState.lastUsedSeason ?? String(defaultSeason);
   const seasonForLinks = yearFromPath ?? String(defaultSeason);
+  const seasonNum = Number(seasonForLinks);
+
+  const visibleLinks = PRIMARY_LINKS.filter((link) => {
+    if (!link.feature) return true;
+    return isFeatureEnabled(link.feature, seasonNum, activeSeason);
+  });
 
   const handleSeasonChange = (newSeason: string) => {
     setLastUsedSeason(newSeason);
@@ -53,7 +61,7 @@ export function Navbar() {
 
   const navLinks = (
     <>
-      {PRIMARY_LINKS.map((link) => (
+      {visibleLinks.map((link) => (
         <Link
           key={link.label}
           href={link.href(seasonForLinks)}
@@ -114,7 +122,7 @@ export function Navbar() {
             className="border-zinc-700 bg-zinc-800 text-zinc-100 w-[min(100vw-2rem,320px)] p-3 space-y-3"
           >
             <div className="flex flex-col gap-1">
-              {PRIMARY_LINKS.map((link) => (
+              {visibleLinks.map((link) => (
                 <Link
                   key={link.label}
                   href={link.href(seasonForLinks)}

@@ -108,11 +108,11 @@ export function useTeamInfo(teamId: string | undefined, season: number | undefin
   });
 }
 
-export function useRoster(teamId: string | undefined, season: number | undefined) {
+export function useRoster(teamId: string | undefined, season: number | undefined, enabled = true) {
   return useQuery({
     queryKey: ["roster", teamId, season],
     queryFn: () => getRoster(teamId!, season),
-    enabled: Boolean(teamId) && season != null && !Number.isNaN(season),
+    enabled: enabled && Boolean(teamId) && season != null && !Number.isNaN(season),
   });
 }
 
@@ -183,9 +183,10 @@ export function useScoreboardStripGames(
   phase: string | null | undefined,
   currentWeek: number | null | undefined,
   enabled = true,
-  defaultSeason?: number
+  defaultSeason?: number,
+  isActive?: boolean | null
 ) {
-  const isLive = shouldUseLiveScoreboard(year, phase, defaultSeason);
+  const isLive = shouldUseLiveScoreboard(year, phase, defaultSeason, isActive);
   const live = useLiveScoreboard(enabled && isLive);
   const week = useWeekGames(
     year,
@@ -219,19 +220,25 @@ export function useGamePlays(gameId: number | undefined, enabled = true) {
   });
 }
 
-export function useNews(limit = 25) {
+export function useNews(limit = 25, enabled = true) {
   return useQuery({
     queryKey: ["news", limit],
     queryFn: () => getNews(limit),
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useTeamNews(teamId: string | undefined, season: number | undefined, limit = 15) {
+export function useTeamNews(
+  teamId: string | undefined,
+  season: number | undefined,
+  limit = 15,
+  enabled = true
+) {
   return useQuery({
     queryKey: ["teamNews", teamId, season, limit],
     queryFn: () => getTeamNews(teamId!, season, limit),
-    enabled: Boolean(teamId),
+    enabled: enabled && Boolean(teamId),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -262,10 +269,14 @@ export function useRankings(season: number | undefined) {
   });
 }
 
-export function useDepthChart(teamId: string | undefined, season: number | undefined) {
+export function useDepthChart(
+  teamId: string | undefined,
+  season: number | undefined,
+  enabled = true
+) {
   return useQuery({
     queryKey: ["depthChart", teamId, season],
     queryFn: () => getDepthChart(teamId!, season!),
-    enabled: Boolean(teamId) && season != null && !Number.isNaN(season),
+    enabled: enabled && Boolean(teamId) && season != null && !Number.isNaN(season),
   });
 }

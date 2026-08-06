@@ -49,7 +49,18 @@ Date: 2026-08-03. Probes: `scripts/discovery-probes.mjs`, `scripts/discovery-pro
 - Live `espnCfbRankings({})` returns AP Top 25 + AFCA Coaches (+ FCS polls). Includes `ranks` with team/record/points.
 - Currently surfaces **2025 final** rankings during 2026 preseason — product should label season/week.
 - `espnCfbSeasonWeekRankings` returns Core `$ref` items for historical weeks (e.g. 2025 week 10).
-- Legacy CDN `getRankings` returned HTML (broken) — prefer site rankings + week ranking refs.
+- Legacy CDN `getRankings` returned HTML (broken) — **fixed in app**: historical seasons use Core week ranking refs via `fetchHistoricalRankingsFromCore` in `lib/sdv/cfb.ts`.
+- ESPN site.api returns 403 for sportsdataverse’s default User-Agent — stripped in `lib/sdv/client.ts` before SDV load.
+
+## Season context (year change)
+
+- `espnCfbSeasonInfo({ season })` is the source of truth for phase windows, start/end dates, and whether a season is active.
+- `/season/:year/context` maps that payload via `mapSeasonInfoToContextFields` in `lib/season-context.ts`.
+- Frontend stores the **active** (default) season context in `GlobalStateContext.activeSeason`.
+- Year-agnostic feeds (news, team news, depth, roster) are gated via `lib/activeSeasonFeatures.ts`:
+  - require viewing the active season year
+  - depth / team news also blocked in preseason
+- Viewing-year context still comes from `useSeasonContext(year)` for banners, scoreboard phase, etc.
 
 ## Product implications
 

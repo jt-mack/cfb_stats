@@ -14,7 +14,10 @@ import { formatHeightInches } from "@/lib/format";
 import type { RosterPlayer } from "@/lib/types";
 import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
 import { useRoster } from "@/lib/hooks/queries";
+import { useActiveSeason } from "@/context/GlobalStateContext";
+import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
 import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { UnavailableFeature } from "@/components/ui/UnavailableFeature";
 
 function fullName(p: RosterPlayer): string {
   return [p.firstName, p.lastName].filter(Boolean).join(" ") || p.id;
@@ -27,7 +30,13 @@ type RosterProps = {
 
 export function Roster({ teamId, season }: RosterProps) {
   const seasonNum = season ? Number(season) : undefined;
-  const { data: roster = [], isLoading, isError } = useRoster(teamId, seasonNum);
+  const activeSeason = useActiveSeason();
+  const availability = getFeatureAvailability("roster", seasonNum, activeSeason);
+  const { data: roster = [], isLoading, isError } = useRoster(
+    teamId,
+    seasonNum,
+    availability.enabled
+  );
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortMode, setSortMode] = useState<"number" | "name">("number");
 
@@ -53,6 +62,9 @@ export function Roster({ teamId, season }: RosterProps) {
     return result;
   }, [roster, sortMode, positionFilter]);
 
+  if (!availability.enabled) {
+    return <UnavailableFeature message={availability.reason ?? "Roster is unavailable."} />;
+  }
   if (isLoading) return <PageSpinner heightClass="h-[30vh]" />;
   if (isError) return <PageError message="Failed to load roster." />;
 

@@ -5,6 +5,12 @@
  * sportsdataverse / ESPN types — see `lib/sdv/types.ts` for SDV response types.
  */
 
+export interface TeamNextEvent {
+  id: number;
+  name: string;
+  date: string;
+}
+
 export interface Team {
   id: number;
   school: string;
@@ -28,6 +34,13 @@ export interface Team {
     dome?: boolean;
   } | null;
   links?: { href: string; text: string }[] | null;
+  /** From ESPN team hub — overall W-L summary when present. */
+  recordSummary?: string | null;
+  rank?: number | null;
+  standingSummary?: string | null;
+  /** ESPN conference group id for standings drill-down. */
+  conferenceGroupId?: string | null;
+  nextEvent?: TeamNextEvent | null;
 }
 
 export interface Conference {
@@ -105,6 +118,8 @@ export interface GameTeamStatEntry {
     team: string;
     homeAway: string;
     points: number | null;
+    color?: string | null;
+    alternateColor?: string | null;
     stats: { category: string; stat: string }[];
   }[];
 }
@@ -164,6 +179,8 @@ export interface AdvancedSeasonStat {
   season: number;
   offenseEfficiency: number;
   defenseEfficiency: number;
+  color?: string | null;
+  alternateColor?: string | null;
 }
 
 export interface PlayerStat {

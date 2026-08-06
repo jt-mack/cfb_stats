@@ -1,14 +1,18 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { CSSProperties } from "react";
-import type { Conference, Team } from "@/lib/types";
+import type { Conference, GameWithOdds, Team, TeamRecords } from "@/lib/types";
+import type { TeamStyle } from "@/lib/teamColors";
 
 export type TeamPageContextValue = {
   year: string;
   team: Team;
   conference: Conference | undefined;
-  style: CSSProperties;
+  style: TeamStyle;
+  schedule: GameWithOdds[];
+  standings: TeamRecords[] | undefined;
+  nextGame: GameWithOdds | null;
+  recordStr: string;
 };
 
 const TeamPageContext = createContext<TeamPageContextValue | null>(null);
@@ -42,7 +46,7 @@ export const TEAM_TABS: ReadonlyArray<{
   { slug: "roster", label: "Roster" },
   { slug: "depth", label: "Depth" },
   { slug: "coach", label: "Coach" },
-  { slug: "recruiting", label: "Recruiting" },
+  // { slug: "recruiting", label: "Recruiting" },
   { slug: "standings", label: "Standings", wideOnMobile: true },
   { slug: "news", label: "News" },
 ];
@@ -57,4 +61,3 @@ export type TeamTabSlug =
   | "recruiting"
   | "standings"
   | "news";
-

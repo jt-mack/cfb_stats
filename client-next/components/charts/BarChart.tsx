@@ -33,10 +33,13 @@ type BarChartProps = {
 export function BarChart({ labels, datasets }: BarChartProps) {
   const data = {
     labels,
-    datasets: datasets.map((d) => ({
+    datasets: datasets.map((d, i) => ({
       ...d,
-      backgroundColor: d.backgroundColor ?? "rgba(0,0,0,0.2)",
-      borderColor: d.borderColor ?? "rgba(0,0,0,0.5)",
+      backgroundColor:
+        d.backgroundColor ??
+        (i === 0 ? "rgba(59, 130, 246, 0.75)" : "rgba(239, 68, 68, 0.75)"),
+      borderColor:
+        d.borderColor ?? (i === 0 ? "rgb(59, 130, 246)" : "rgb(239, 68, 68)"),
     })),
   };
   return (

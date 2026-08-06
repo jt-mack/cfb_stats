@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { TeamRecords } from "@/lib/types";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
-import { useStandings, useConferenceTeams } from "@/lib/hooks/queries";
+import { useConferenceTeams } from "@/lib/hooks/queries";
 import { StandingsTable } from "@/components/tables/StandingsTable";
 import type { StandingsRow } from "@/components/tables/StandingsTable";
 import { useTeamPage } from "../TeamPageContext";
@@ -25,10 +25,9 @@ function createStandingsProps(
 }
 
 export default function TeamStandingsTab() {
+  const { year, team, conference, style, standings } = useTeamPage();
   const { seasonNum } = useSeasonParams();
-  const { year, team, conference, style } = useTeamPage();
   const confAbbr = conference?.abbreviation ?? team.conference ?? undefined;
-  const { data: standings } = useStandings(confAbbr, seasonNum);
   const { data: confTeams = [] } = useConferenceTeams(confAbbr, seasonNum);
 
   const conferenceLogos = useMemo(() => {

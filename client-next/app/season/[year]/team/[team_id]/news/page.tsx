@@ -3,12 +3,26 @@
 import Image from "next/image";
 import { useTeamPage } from "../TeamPageContext";
 import { useTeamNews } from "@/lib/hooks/queries";
+import { useActiveSeason } from "@/context/GlobalStateContext";
+import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
 import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { UnavailableFeature } from "@/components/ui/UnavailableFeature";
 
 export default function TeamNewsPage() {
   const { year, team } = useTeamPage();
-  const { data: articles = [], isLoading, isError } = useTeamNews(String(team.id), Number(year), 20);
+  const seasonNum = Number(year);
+  const activeSeason = useActiveSeason();
+  const availability = getFeatureAvailability("teamNews", seasonNum, activeSeason);
+  const { data: articles = [], isLoading, isError } = useTeamNews(
+    String(team.id),
+    seasonNum,
+    20,
+    availability.enabled
+  );
 
+  if (!availability.enabled) {
+    return <UnavailableFeature message={availability.reason ?? "Team news is unavailable."} />;
+  }
   if (isLoading) return <PageSpinner heightClass="h-[30vh]" />;
   if (isError) return <PageError message="Failed to load team news." />;
   if (!articles.length) {

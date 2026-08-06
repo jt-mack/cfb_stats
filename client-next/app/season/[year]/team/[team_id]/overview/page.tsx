@@ -2,31 +2,56 @@
 
 import Link from "next/link";
 import { useTeamPage } from "../TeamPageContext";
-import { useCoaches, useSchedule, useTeamLeaders, useTeamNews } from "@/lib/hooks/queries";
+import { useCoaches, useTeamLeaders, useTeamNews } from "@/lib/hooks/queries";
 import { PageSpinner } from "@/components/ui/PageSpinner";
+import { withAlpha } from "@/lib/teamColors";
+
+function OverviewPanel({
+  title,
+  children,
+  accent,
+}: {
+  title: string;
+  children: React.ReactNode;
+  accent?: string;
+}) {
+  return (
+    <div
+      className="rounded-md border border-zinc-700 bg-zinc-800/80 p-4"
+      style={
+        accent
+          ? { borderLeftWidth: 3, borderLeftColor: accent, boxShadow: `inset 3px 0 0 ${withAlpha(accent, 0.15)}` }
+          : undefined
+      }
+    >
+      <h3 className="text-sm font-medium text-zinc-300 mb-2">{title}</h3>
+      {children}
+    </div>
+  );
+}
 
 export default function TeamOverviewTab() {
-  const { year, team } = useTeamPage();
+  const { year, team, schedule, nextGame, style } = useTeamPage();
   const seasonNum = Number(year);
   const teamId = String(team.id);
-  const { data: schedule = [], isLoading: schedLoading } = useSchedule(team.school, seasonNum);
-  const { data: coaches = [] } = useCoaches(teamId, seasonNum);
+  const accent = style.color;
+  const { data: coaches = [], isLoading: coachesLoading } = useCoaches(teamId, seasonNum);
   const { data: leaders = [] } = useTeamLeaders(teamId, seasonNum);
   const { data: news = [] } = useTeamNews(teamId, seasonNum, 5);
 
-  if (schedLoading) return <PageSpinner heightClass="h-[30vh]" />;
+  if (coachesLoading && schedule.length === 0) {
+    return <PageSpinner heightClass="h-[30vh]" color={accent} />;
+  }
 
   const completed = schedule.filter((g) => g.completed);
-  const upcoming = schedule.filter((g) => !g.completed);
   const last = completed[completed.length - 1];
-  const next = upcoming[0];
+  const next = nextGame;
   const coach = coaches[0];
 
   return (
     <div className="space-y-6 min-w-0">
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-md border border-zinc-700 bg-zinc-800 p-4">
-          <h3 className="text-sm font-medium text-zinc-300 mb-2">Next game</h3>
+        <OverviewPanel title="Next game" accent={accent}>
           {next ? (
             <Link href={`/season/${year}/game/${next.id}`} className="text-zinc-100 hover:underline">
               {next.awayTeam} @ {next.homeTeam}
@@ -37,9 +62,8 @@ export default function TeamOverviewTab() {
           ) : (
             <p className="text-zinc-400 text-sm">No upcoming game scheduled.</p>
           )}
-        </div>
-        <div className="rounded-md border border-zinc-700 bg-zinc-800 p-4">
-          <h3 className="text-sm font-medium text-zinc-300 mb-2">Last result</h3>
+        </OverviewPanel>
+        <OverviewPanel title="Last result" accent={accent}>
           {last ? (
             <Link href={`/season/${year}/game/${last.id}`} className="text-zinc-100 hover:underline">
               {last.awayTeam} {last.awayPoints} – {last.homePoints} {last.homeTeam}
@@ -47,30 +71,36 @@ export default function TeamOverviewTab() {
           ) : (
             <p className="text-zinc-400 text-sm">No completed games yet.</p>
           )}
-        </div>
+        </OverviewPanel>
       </div>
 
-      <div className="rounded-md border border-zinc-700 bg-zinc-800 p-4">
-        <h3 className="text-sm font-medium text-zinc-300 mb-2">Coach</h3>
+      <OverviewPanel title="Coach" accent={accent}>
         {coach ? (
           <div className="text-sm text-zinc-100">
             {[coach.firstName, coach.lastName].filter(Boolean).join(" ")}
             {coach.schoolRecordSummary ? (
               <span className="text-zinc-400"> · School record {coach.schoolRecordSummary}</span>
             ) : null}
-            <Link href={`/season/${year}/team/${teamId}/coach`} className="block text-xs text-zinc-500 mt-1 hover:text-zinc-300">
+            <Link
+              href={`/season/${year}/team/${teamId}/coach`}
+              className="block text-xs mt-1 hover:underline"
+              style={{ color: accent }}
+            >
               Coach details →
             </Link>
           </div>
         ) : (
           <p className="text-zinc-400 text-sm">Coach unavailable.</p>
         )}
-      </div>
+      </OverviewPanel>
 
-      <div className="rounded-md border border-zinc-700 bg-zinc-800 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-zinc-300">Key leaders</h3>
-          <Link href={`/season/${year}/team/${teamId}/leaders`} className="text-xs text-zinc-500 hover:text-zinc-300">
+      <OverviewPanel title="Key leaders" accent={accent}>
+        <div className="flex items-center justify-end mb-2 -mt-1">
+          <Link
+            href={`/season/${year}/team/${teamId}/leaders`}
+            className="text-xs hover:underline"
+            style={{ color: accent }}
+          >
             All leaders →
           </Link>
         </div>
@@ -85,12 +115,15 @@ export default function TeamOverviewTab() {
         ) : (
           <p className="text-zinc-400 text-sm">Season leaders not available yet.</p>
         )}
-      </div>
+      </OverviewPanel>
 
-      <div className="rounded-md border border-zinc-700 bg-zinc-800 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-zinc-300">Team news</h3>
-          <Link href={`/season/${year}/team/${teamId}/news`} className="text-xs text-zinc-500 hover:text-zinc-300">
+      <OverviewPanel title="Team news" accent={accent}>
+        <div className="flex items-center justify-end mb-2 -mt-1">
+          <Link
+            href={`/season/${year}/team/${teamId}/news`}
+            className="text-xs hover:underline"
+            style={{ color: accent }}
+          >
             More →
           </Link>
         </div>
@@ -112,7 +145,7 @@ export default function TeamOverviewTab() {
         ) : (
           <p className="text-zinc-400 text-sm">No team news right now.</p>
         )}
-      </div>
+      </OverviewPanel>
     </div>
   );
 }

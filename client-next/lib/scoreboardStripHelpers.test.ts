@@ -20,6 +20,10 @@ describe("shouldUseLiveScoreboard", () => {
   it("does not use live in preseason even for the default season", () => {
     assert.equal(shouldUseLiveScoreboard(2026, "preseason", 2026), false);
   });
+
+  it("respects isActive=false even in regular season", () => {
+    assert.equal(shouldUseLiveScoreboard(2026, "regular", 2026, false), false);
+  });
 });
 
 describe("scoreboardStripTitle", () => {

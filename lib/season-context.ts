@@ -1,7 +1,6 @@
-import { ScoreboardRepo } from '../repos/scoreboard-repo';
 import { FbsRepo } from '../repos/fbs-repo';
-import { getDefaultSeason } from './sdv';
-import type { CalendarWeek } from './types';
+import { fetchSeasonInfo, getDefaultSeason } from './sdv';
+import type { SdvSeasonInfo, SdvSeasonTypeInfo } from './sdv/types';
 
 export type SeasonPhase = 'offseason' | 'preseason' | 'regular' | 'postseason';
 
@@ -14,6 +13,14 @@ export type SeasonContext = {
   firstGameDate: string | null;
   hasPublishedRankings: boolean;
   rankingsWeek: number | null;
+  /** Season window from Core `espnCfbSeasonInfo`. */
+  startDate: string | null;
+  endDate: string | null;
+  /** True when `now` falls within the season start/end dates. */
+  isActive: boolean;
+  /** ESPN current type name when active (e.g. Preseason / Regular Season). */
+  activeTypeName: string | null;
+  activeTypeId: number | null;
 };
 
 function parseDate(value: string | null | undefined): Date | null {
@@ -22,131 +29,90 @@ function parseDate(value: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function findActiveWeek(weeks: CalendarWeek[], now: Date): CalendarWeek | null {
-  return (
-    weeks.find((w) => {
-      const start = parseDate(w.startDate);
-      const end = parseDate(w.endDate);
-      if (!start || !end) return false;
-      return now >= start && now <= end;
-    }) ?? null
-  );
+function phaseFromTypeId(typeId: number | null | undefined): SeasonPhase | null {
+  switch (typeId) {
+    case 1:
+      return 'preseason';
+    case 2:
+      return 'regular';
+    case 3:
+      return 'postseason';
+    case 4:
+      return 'offseason';
+    default:
+      return null;
+  }
 }
 
-export async function buildSeasonContext(year: number): Promise<SeasonContext> {
-  const now = new Date();
-  const defaultSeason = getDefaultSeason();
-  const scoreboardRepo = new ScoreboardRepo();
-  const fbsRepo = new FbsRepo();
+function findTypeByAbbr(items: SdvSeasonTypeInfo[], abbr: string): SdvSeasonTypeInfo | null {
+  return items.find((t) => t.abbreviation === abbr || t.slug?.includes(abbr)) ?? null;
+}
+
+function findActiveTypeWindow(items: SdvSeasonTypeInfo[], now: Date): SdvSeasonTypeInfo | null {
+  for (const item of items) {
+    const start = parseDate(item.startDate);
+    const end = parseDate(item.endDate);
+    if (start && end && now >= start && now <= end) return item;
+  }
+  return null;
+}
+
+/**
+ * Map Core season info into app season context fields (excluding rankings).
+ * Prefer date windows on `types.items` over sticky `type` on completed seasons.
+ */
+export function mapSeasonInfoToContextFields(
+  info: SdvSeasonInfo,
+  year: number,
+  defaultSeason: number,
+  now: Date = new Date()
+): Omit<SeasonContext, 'hasPublishedRankings' | 'rankingsWeek'> {
+  const items = info.types?.items ?? [];
+  const startDate = info.startDate ?? null;
+  const endDate = info.endDate ?? null;
+  const seasonStart = parseDate(startDate);
+  const seasonEnd = parseDate(endDate);
+  const isActive = !!(seasonStart && seasonEnd && now >= seasonStart && now <= seasonEnd);
+
+  const regular = findTypeByAbbr(items, 'reg') ?? findTypeByAbbr(items, 'regular');
+  const firstGameDate = regular?.startDate ?? null;
+  const regularStart = parseDate(firstGameDate);
 
   let phase: SeasonPhase = 'offseason';
   let currentWeek: number | null = null;
-  let seasonStarted = false;
-  let firstGameDate: string | null = null;
-  let hasPublishedRankings = false;
-  let rankingsWeek: number | null = null;
+  let activeTypeName: string | null = null;
+  let activeTypeId: number | null = null;
 
-  let calendar: CalendarWeek[] = [];
-  try {
-    calendar = await scoreboardRepo.getCalendar(year);
-    const regularWeeks = calendar.filter((w) => w.seasonType === 'regular');
-    const postseasonWeeks = calendar.filter((w) => w.seasonType === 'postseason');
-    const allWeeks = [...regularWeeks, ...postseasonWeeks];
-
-    const firstRegular = regularWeeks.length
-      ? regularWeeks.reduce((a, b) => {
-          const da = parseDate(a.startDate);
-          const db = parseDate(b.startDate);
-          if (!da) return b;
-          if (!db) return a;
-          return da < db ? a : b;
-        })
-      : null;
-
-    firstGameDate = firstRegular?.startDate ?? null;
-    const firstDate = parseDate(firstGameDate);
-
-    if (firstDate && now < firstDate) {
+  if (!isActive) {
+    // Completed or not-yet-started relative to season window
+    if (seasonStart && now < seasonStart) {
       phase = 'preseason';
-    } else if (firstDate && now >= firstDate) {
-      seasonStarted = true;
-      const activeRegular = findActiveWeek(regularWeeks, now);
-      const activePostseason = findActiveWeek(postseasonWeeks, now);
-
-      if (activePostseason) {
-        phase = 'postseason';
-        currentWeek = activePostseason.week;
-      } else if (activeRegular) {
-        phase = 'regular';
-        currentWeek = activeRegular.week;
-      } else {
-        const lastRegular = regularWeeks.reduce((a, b) => (b.week > a.week ? b : a), regularWeeks[0]);
-        const lastRegularEnd = parseDate(lastRegular?.endDate);
-        const firstPostseason = postseasonWeeks.length
-          ? postseasonWeeks.reduce((a, b) => {
-              const da = parseDate(a.startDate);
-              const db = parseDate(b.startDate);
-              if (!da) return b;
-              if (!db) return a;
-              return da < db ? a : b;
-            })
-          : null;
-        const firstPostseasonStart = parseDate(firstPostseason?.startDate);
-        const lastPostseason = postseasonWeeks.reduce((a, b) => (b.week > a.week ? b : a), postseasonWeeks[0]);
-        const lastPostseasonEnd = parseDate(lastPostseason?.endDate);
-
-        if (lastRegularEnd && now > lastRegularEnd) {
-          if (firstPostseasonStart && now >= firstPostseasonStart) {
-            phase = lastPostseasonEnd && now > lastPostseasonEnd ? 'offseason' : 'postseason';
-            currentWeek = lastPostseason?.week ?? null;
-          } else {
-            phase = 'postseason';
-            currentWeek = lastRegular?.week ?? null;
-          }
-        } else {
-          phase = 'regular';
-          currentWeek = lastRegular?.week ?? null;
-        }
-      }
-    } else if (year >= defaultSeason) {
-      phase = 'preseason';
+      activeTypeName = 'Preseason';
+      activeTypeId = 1;
+    } else {
+      phase = 'offseason';
     }
-  } catch (err) {
-    console.warn(`buildSeasonContext calendar failed for ${year}:`, err instanceof Error ? err.message : err);
-    if (year >= defaultSeason) phase = 'preseason';
-    else phase = 'offseason';
+  } else {
+    const window = findActiveTypeWindow(items, now);
+    const fromWindow = phaseFromTypeId(window?.type != null ? Number(window.type) : null);
+    const fromEspnType = phaseFromTypeId(info.type?.type != null ? Number(info.type.type) : null);
+    phase = fromWindow ?? fromEspnType ?? 'preseason';
+    activeTypeName = window?.name ?? info.type?.name ?? null;
+    activeTypeId = window?.type != null ? Number(window.type) : info.type?.type != null ? Number(info.type.type) : null;
+
+    const weekSource =
+      window?.week ??
+      (fromWindow && info.type?.type === window?.type ? info.type?.week : info.type?.week);
+    if (weekSource?.number != null) currentWeek = Number(weekSource.number);
   }
 
-  // Historical seasons are complete relative to "now" — never present as live.
+  // Historical years are never "live" for scoreboard / preseason banners.
   if (year < defaultSeason && (phase === 'regular' || phase === 'postseason')) {
     phase = 'offseason';
+    currentWeek = null;
   }
 
-  try {
-    const rankMap = await fbsRepo.getRankingsFromPolls(year);
-    if (rankMap.size > 0) {
-      hasPublishedRankings = true;
-      rankingsWeek = currentWeek ?? 1;
-    }
-  } catch (err) {
-    console.warn(`buildSeasonContext rankings failed for ${year}:`, err instanceof Error ? err.message : err);
-  }
-
-  if (!seasonStarted && phase !== 'preseason') {
-    try {
-      const sample = await scoreboardRepo.getWeekGames(year, 1);
-      if (sample.some((g) => g.completed)) {
-        seasonStarted = true;
-        // Do not resurrect historical seasons as "regular" — that drives live UI.
-        if (phase === 'offseason' && year >= defaultSeason) {
-          phase = 'regular';
-        }
-        currentWeek = currentWeek ?? 1;
-      }
-    } catch {
-      // ignore
-    }
-  }
+  const seasonStarted = !!(regularStart && now >= regularStart) || (year < defaultSeason && !!regularStart);
 
   return {
     year,
@@ -155,6 +121,54 @@ export async function buildSeasonContext(year: number): Promise<SeasonContext> {
     currentWeek,
     seasonStarted,
     firstGameDate,
+    startDate,
+    endDate,
+    isActive: isActive && year >= defaultSeason,
+    activeTypeName,
+    activeTypeId,
+  };
+}
+
+export async function buildSeasonContext(year: number): Promise<SeasonContext> {
+  const defaultSeason = getDefaultSeason();
+  const fbsRepo = new FbsRepo();
+
+  let base: Omit<SeasonContext, 'hasPublishedRankings' | 'rankingsWeek'>;
+
+  try {
+    const info = await fetchSeasonInfo(year);
+    base = mapSeasonInfoToContextFields(info, year, defaultSeason);
+  } catch (err) {
+    console.warn(`buildSeasonContext season info failed for ${year}:`, err instanceof Error ? err.message : err);
+    base = {
+      year,
+      defaultSeason,
+      phase: year >= defaultSeason ? 'preseason' : 'offseason',
+      currentWeek: null,
+      seasonStarted: year < defaultSeason,
+      firstGameDate: null,
+      startDate: null,
+      endDate: null,
+      isActive: false,
+      activeTypeName: null,
+      activeTypeId: null,
+    };
+  }
+
+  let hasPublishedRankings = false;
+  let rankingsWeek: number | null = null;
+  try {
+    const rankMap = await fbsRepo.getRankingsFromPolls(year);
+    if (rankMap.size > 0) {
+      hasPublishedRankings = true;
+      rankingsWeek = base.currentWeek ?? 1;
+    }
+  } catch (err) {
+    console.warn(`buildSeasonContext rankings failed for ${year}:`, err instanceof Error ? err.message : err);
+  }
+
+  return {
+    ...base,
     hasPublishedRankings,
     rankingsWeek,
   };

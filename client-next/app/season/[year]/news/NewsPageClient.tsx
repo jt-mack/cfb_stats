@@ -3,13 +3,28 @@
 import Image from "next/image";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useNews } from "@/lib/hooks/queries";
+import { useActiveSeason } from "@/context/GlobalStateContext";
+import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
 import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
+import { UnavailableFeature } from "@/components/ui/UnavailableFeature";
 
 export default function NewsPageClient() {
-  const { year, isValidSeason } = useSeasonParams();
-  const { data: articles = [], isLoading, isError } = useNews(30);
+  const { year, seasonNum, isValidSeason } = useSeasonParams();
+  const activeSeason = useActiveSeason();
+  const availability = getFeatureAvailability("news", seasonNum, activeSeason);
+  const { data: articles = [], isLoading, isError } = useNews(30, availability.enabled);
 
   if (!year || !isValidSeason) return <PageError message="Invalid route." />;
+  if (!availability.enabled) {
+    return (
+      <div className="space-y-4 min-w-0">
+        <div className="text-center space-y-1">
+          <h1 className="text-xl font-semibold text-zinc-100">College Football News</h1>
+        </div>
+        <UnavailableFeature message={availability.reason ?? "News is unavailable."} />
+      </div>
+    );
+  }
   if (isLoading) return <PageSpinner heightClass="h-[40vh]" />;
   if (isError) return <PageError message="Failed to load news." />;
 

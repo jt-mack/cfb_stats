@@ -11,6 +11,8 @@ import { formatSeasonDate } from "@/lib/seasonHelpers";
 import { ScoreboardStrip } from "@/components/views/ScoreboardStrip";
 import { PageSpinner, PageError } from "@/components/ui/PageSpinner";
 import { PreseasonBanner } from "@/components/ui/LineScoreTable";
+import { useActiveSeason } from "@/context/GlobalStateContext";
+import { isFeatureEnabled } from "@/lib/activeSeasonFeatures";
 
 function mapTeamToRow(team: FbsTeamWithRank) {
   return {
@@ -29,10 +31,12 @@ export default function SeasonPageClient() {
   const { data: seasonContext, isLoading: contextLoading } = useSeasonContext(seasonNum);
   const { data: teamsData, isLoading: teamsLoading, isError, error } = useTeams(seasonNum);
   const { data: conferences = [] } = useConferences();
+  const activeSeason = useActiveSeason();
 
   const mainConferences = filterMainConferences(conferences);
   const teams = Array.isArray(teamsData) ? teamsData.map(mapTeamToRow) : [];
   const loading = contextLoading || teamsLoading;
+  const showNewsLink = isFeatureEnabled("news", seasonNum, activeSeason);
 
   const handleRowClick = (row: { id: number }) => {
     if (year && row.id) router.push(`/season/${year}/team/${row.id}`);
@@ -69,7 +73,7 @@ export default function SeasonPageClient() {
           { href: `/season/${year}/standings`, label: "Standings" },
           { href: `/season/${year}/rankings`, label: "Rankings" },
           { href: `/season/${year}/stats`, label: "Statistics" },
-          { href: `/season/${year}/news`, label: "News" },
+          ...(showNewsLink ? [{ href: `/season/${year}/news`, label: "News" }] : []),
         ].map((l) => (
           <Link
             key={l.href}

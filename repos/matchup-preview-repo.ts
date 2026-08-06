@@ -144,9 +144,30 @@ export class MatchupPreviewRepo {
           );
         }
 
-        advancedSeasonStats = mapPowerIndexToAdvancedStats(piRows, powerIndexYear, idToSchool).filter(
-          (s) => s.team === homeTeam || s.team === awayTeam
-        );
+        advancedSeasonStats = mapPowerIndexToAdvancedStats(piRows, powerIndexYear, idToSchool)
+          .filter((s) => s.team === homeTeam || s.team === awayTeam);
+
+        const [homeInfo, awayInfo] = await Promise.all([
+          this.teamsRepo.getTeamInfo(homeTeam, powerIndexYear).catch(() => null),
+          this.teamsRepo.getTeamInfo(awayTeam, powerIndexYear).catch(() => null),
+        ]);
+        const brandBySchool = new Map<string, { color: string | null; alternateColor: string | null }>();
+        for (const info of [homeInfo, awayInfo]) {
+          if (info?.school) {
+            brandBySchool.set(info.school, {
+              color: info.color ?? null,
+              alternateColor: info.alternateColor ?? null,
+            });
+          }
+        }
+        advancedSeasonStats = advancedSeasonStats.map((s) => {
+          const brand = brandBySchool.get(s.team);
+          return {
+            ...s,
+            color: brand?.color ?? null,
+            alternateColor: brand?.alternateColor ?? null,
+          };
+        });
         effectiveStatsYear = powerIndexYear;
 
         if (!completed) {

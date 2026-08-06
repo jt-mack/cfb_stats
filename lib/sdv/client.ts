@@ -6,6 +6,53 @@ export type SdvCfbModule = typeof CfbService & Record<string, (params?: Record<s
 type SdvModule = Record<string, Record<string, unknown>> & { cfb: SdvCfbModule };
 
 let sdvModule: SdvModule | null = null;
+let axiosEspnPatchApplied = false;
+
+/**
+ * ESPN site.api returns 403 for sportsdataverse's default User-Agent.
+ * Patch axios.create before SDV loads so its shared client omits UA on ESPN hosts.
+ */
+async function patchAxiosForEspn(): Promise<void> {
+  if (axiosEspnPatchApplied) return;
+  axiosEspnPatchApplied = true;
+  const axios = (await import('axios')).default;
+
+  const stripEspnUserAgent = (req: { url?: string; baseURL?: string; headers?: Record<string, unknown> & { delete?: (k: string) => void } }) => {
+    const url = `${req.baseURL ?? ''}${req.url ?? ''}`;
+    if (!/espn\.com|espncdn\.com/i.test(url)) return req;
+    if (req.headers) {
+      if (typeof req.headers.delete === 'function') {
+        req.headers.delete('User-Agent');
+        req.headers.delete('user-agent');
+      } else {
+        delete req.headers['User-Agent'];
+        delete req.headers['user-agent'];
+      }
+    }
+    return req;
+  };
+
+  axios.interceptors.request.use((req) => stripEspnUserAgent(req as Parameters<typeof stripEspnUserAgent>[0]) as typeof req);
+
+  const originalCreate = axios.create.bind(axios);
+  axios.create = ((config?: Parameters<typeof axios.create>[0]) => {
+    const instance = originalCreate(config);
+    const headers = instance.defaults.headers as Record<string, unknown> & {
+      common?: Record<string, unknown>;
+    };
+    const strip = (bag: Record<string, unknown> | undefined) => {
+      if (!bag) return;
+      delete bag['User-Agent'];
+      delete bag['user-agent'];
+    };
+    strip(headers);
+    strip(headers.common);
+    instance.interceptors.request.use((req) =>
+      stripEspnUserAgent(req as Parameters<typeof stripEspnUserAgent>[0]) as typeof req
+    );
+    return instance;
+  }) as typeof axios.create;
+}
 
 /** Native dynamic import — avoids TS compiling to require() in CJS output. */
 const dynamicImport = new Function('specifier', 'return import(specifier)') as (
@@ -14,6 +61,7 @@ const dynamicImport = new Function('specifier', 'return import(specifier)') as (
 
 export async function getSdv(): Promise<SdvModule> {
   if (!sdvModule) {
+    await patchAxiosForEspn();
     const mod = await dynamicImport('sportsdataverse');
     sdvModule = mod.default;
   }

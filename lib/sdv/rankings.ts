@@ -36,8 +36,12 @@ export function parsePollRankMap(raw: Record<string, unknown>): Map<number, numb
 
   const rankMap = new Map<number, number>();
   for (const entry of ranks) {
-    const team = entry.team as { id?: string | number } | undefined;
-    const id = Number(team?.id);
+    const team = entry.team as { id?: string | number; '$ref'?: string } | undefined;
+    let id = Number(team?.id);
+    if (!id && team?.['$ref']) {
+      const m = String(team['$ref']).match(/teams\/(\d+)/);
+      id = m ? Number(m[1]) : 0;
+    }
     const rank = Number(entry.current ?? entry.rank);
     if (id && rank > 0 && rank <= 99) rankMap.set(id, rank);
   }
@@ -45,11 +49,17 @@ export function parsePollRankMap(raw: Record<string, unknown>): Map<number, numb
 }
 
 function mapRankEntry(entry: Record<string, unknown>): PollRank | null {
-  const team = entry.team as { id?: string | number; location?: string; displayName?: string } | undefined;
-  const id = Number(team?.id);
+  const team = entry.team as { id?: string | number; location?: string; displayName?: string; '$ref'?: string } | undefined;
+  let id = Number(team?.id);
+  if (!id && team?.['$ref']) {
+    const m = String(team['$ref']).match(/teams\/(\d+)/);
+    id = m ? Number(m[1]) : 0;
+  }
   const rank = Number(entry.current ?? entry.rank);
   if (!id || !rank) return null;
-  const record = (entry.recordSummary ?? entry.record) as string | undefined;
+  const record = (entry.recordSummary ?? (entry.record as { summary?: string } | undefined)?.summary ?? entry.record) as
+    | string
+    | undefined;
   const points = entry.points != null ? Number(entry.points) : null;
   const firstPlaceVotes = entry.firstPlaceVotes != null ? Number(entry.firstPlaceVotes) : null;
   const previous = entry.previous != null ? Number(entry.previous) : null;
@@ -58,7 +68,7 @@ function mapRankEntry(entry: Record<string, unknown>): PollRank | null {
     previous: Number.isFinite(previous as number) ? previous : null,
     teamId: id,
     school: team?.location ?? team?.displayName,
-    record: record ?? undefined,
+    record: typeof record === 'string' ? record : undefined,
     points: Number.isFinite(points as number) ? points : null,
     firstPlaceVotes: Number.isFinite(firstPlaceVotes as number) ? firstPlaceVotes : null,
     trend: entry.trend != null ? String(entry.trend) : null,
