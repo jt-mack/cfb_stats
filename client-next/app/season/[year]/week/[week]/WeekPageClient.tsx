@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useWeekGames } from "@/lib/hooks/queries";
@@ -9,8 +9,19 @@ import { Button } from "@/components/ui/button";
 
 export default function WeekPageClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { year, week, seasonNum, weekNum, isValidSeason, isValidWeek } = useSeasonParams();
-  const { data: games = [], isLoading, isError } = useWeekGames(seasonNum, weekNum);
+
+  const seasontypeParam = Number(searchParams.get("seasontype"));
+  const seasontype =
+    seasontypeParam === 1 || seasontypeParam === 3 ? seasontypeParam : 2;
+
+  const { data: games = [], isLoading, isError } = useWeekGames(
+    seasonNum,
+    weekNum,
+    true,
+    seasontype
+  );
 
   if (!year || !week || !isValidSeason || !isValidWeek) {
     return <PageError message="Invalid route." />;
@@ -25,7 +36,7 @@ export default function WeekPageClient() {
           <Link href={`/season/${year}`}>← Back to season</Link>
         </Button>
         <h1 className="text-xl font-semibold text-foreground mt-2">
-          {year} — Week {week}
+          {year} — {seasontype === 3 ? "Postseason Week" : "Week"} {week}
         </h1>
       </div>
       {isError ? (

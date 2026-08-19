@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import { routeCache } from './cache';
-import { getDefaultSeason } from './espn-client';
+import { EMPTY_PAYLOAD_TTL_MS, getDefaultSeason, isEmptyPayload } from './espn-client';
 
 const MIN_SEASON = 1869;
 const MAX_SEASON = 2100;
@@ -37,7 +37,12 @@ export async function cachedJson<T>(
       return;
     }
     const data = await loader();
-    routeCache.set(key, data, ttlSeconds);
+    // Empty payloads (common in preseason before ESPN publishes) get a short
+    // TTL so real data appears promptly instead of being negative-cached.
+    const ttl = isEmptyPayload(data)
+      ? Math.min(ttlSeconds, EMPTY_PAYLOAD_TTL_MS / 1000)
+      : ttlSeconds;
+    routeCache.set(key, data, ttl);
     res.json(data);
   } catch (error) {
     console.error(`Route error [${key}]:`, error);

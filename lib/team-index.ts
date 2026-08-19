@@ -134,84 +134,99 @@ function teamsFromParsedStandings(rows: SdvParsedStandingsRow[]): Team[] {
     .filter(Boolean) as Team[];
 }
 
-export class TeamIndex {
-  private byId = new Map<number, Team>();
-  private bySchool = new Map<string, Team>();
-  private byAbbr = new Map<string, Team>();
-  private loadedYear: number | null = null;
-  private sortedTeams: Team[] | null = null;
-  private loadInflight = new Map<number, Promise<void>>();
+type YearIndex = {
+  byId: Map<number, Team>;
+  bySchool: Map<string, Team>;
+  byAbbr: Map<string, Team>;
+  sortedTeams: Team[];
+};
 
-  private indexTeam(team: Team): void {
-    this.byId.set(team.id, team);
-    this.bySchool.set(team.school.toLowerCase(), team);
+export class TeamIndex {
+  /** Immutable per-year snapshots — concurrent requests for different seasons never share mutable state. */
+  private indexes = new Map<number, YearIndex>();
+  private loadInflight = new Map<number, Promise<YearIndex>>();
+
+  private static indexTeam(index: YearIndex, team: Team): void {
+    index.byId.set(team.id, team);
+    index.bySchool.set(team.school.toLowerCase(), team);
     if (team.abbreviation) {
-      this.byAbbr.set(team.abbreviation.toLowerCase(), team);
+      index.byAbbr.set(team.abbreviation.toLowerCase(), team);
     }
   }
 
-  private async loadYear(year: number, merge = false): Promise<void> {
+  private static async loadYearInto(index: YearIndex, year: number, merge = false): Promise<void> {
     const rows = await fetchParsedStandings(year, undefined, {
       cacheKey: `fbsStandingsParsed:${year}`,
       cacheTtlMs: 24 * 60 * 60 * 1000,
     });
 
     for (const team of teamsFromParsedStandings(rows)) {
-      if (merge && this.byId.has(team.id)) continue;
-      this.indexTeam(team);
+      if (merge && index.byId.has(team.id)) continue;
+      TeamIndex.indexTeam(index, team);
     }
   }
 
-  async load(year: number): Promise<void> {
-    if (this.loadedYear === year && this.byId.size > 0) return;
+  private async buildIndex(year: number): Promise<YearIndex> {
+    const index: YearIndex = {
+      byId: new Map(),
+      bySchool: new Map(),
+      byAbbr: new Map(),
+      sortedTeams: [],
+    };
+
+    await TeamIndex.loadYearInto(index, year);
+
+    // Upcoming-season standings can be sparse; fall back to prior-year membership.
+    if (index.byId.size < 100) {
+      await TeamIndex.loadYearInto(index, year - 1, true);
+    }
+
+    index.sortedTeams = [...index.byId.values()].sort((a, b) => a.school.localeCompare(b.school));
+    return index;
+  }
+
+  private async load(year: number): Promise<YearIndex> {
+    const existing = this.indexes.get(year);
+    if (existing) return existing;
 
     const inflight = this.loadInflight.get(year);
     if (inflight) return inflight;
 
-    const promise = (async () => {
-      this.byId.clear();
-      this.bySchool.clear();
-      this.byAbbr.clear();
-      this.sortedTeams = null;
-
-      await this.loadYear(year);
-
-      // Upcoming-season standings can be sparse; fall back to prior-year membership.
-      if (this.byId.size < 100) {
-        await this.loadYear(year - 1, true);
-      }
-
-      this.loadedYear = year;
-      this.sortedTeams = [...this.byId.values()].sort((a, b) => a.school.localeCompare(b.school));
-    })().finally(() => {
-      this.loadInflight.delete(year);
-    });
+    const promise = this.buildIndex(year)
+      .then((index) => {
+        // Don't memoize empty results so transient ESPN failures retry.
+        if (index.byId.size > 0) this.indexes.set(year, index);
+        return index;
+      })
+      .finally(() => {
+        this.loadInflight.delete(year);
+      });
 
     this.loadInflight.set(year, promise);
     return promise;
   }
 
   async getAllTeams(year: number): Promise<Team[]> {
-    await this.load(year);
-    return this.sortedTeams ?? [...this.byId.values()].sort((a, b) => a.school.localeCompare(b.school));
+    const index = await this.load(year);
+    return index.sortedTeams;
   }
 
   async getFbsTeamIds(year: number): Promise<Set<number>> {
-    await this.load(year);
-    return new Set(this.byId.keys());
+    const index = await this.load(year);
+    return new Set(index.byId.keys());
   }
 
   async resolveTeam(teamIdOrSchool: string, year: number): Promise<Team | null> {
-    await this.load(year);
+    const index = await this.load(year);
     const idNum = Number(teamIdOrSchool);
     if (!Number.isNaN(idNum)) {
-      return this.byId.get(idNum) ?? null;
+      return index.byId.get(idNum) ?? null;
     }
     const lower = teamIdOrSchool.toLowerCase();
     return (
-      this.bySchool.get(lower) ??
-      this.byAbbr.get(lower) ??
-      [...this.byId.values()].find(
+      index.bySchool.get(lower) ??
+      index.byAbbr.get(lower) ??
+      [...index.byId.values()].find(
         (t) =>
           t.school.toLowerCase() === lower ||
           t.school.toLowerCase().includes(lower) ||

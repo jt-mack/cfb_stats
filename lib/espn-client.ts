@@ -175,6 +175,25 @@ export type SdvRequestOptions = {
   timeoutMs?: number;
 };
 
+/** Cap TTL for empty payloads so preseason/offseason empties don't get locked in. */
+export const EMPTY_PAYLOAD_TTL_MS = 2 * 60 * 1000;
+
+/**
+ * True for payloads that carry no data: null/undefined, empty arrays, empty
+ * objects, and objects whose only array members are all empty (e.g. `{ items: [] }`).
+ */
+export function isEmptyPayload(data: unknown): boolean {
+  if (data == null) return true;
+  if (Array.isArray(data)) return data.length === 0;
+  if (typeof data === 'object') {
+    const values = Object.values(data as Record<string, unknown>);
+    if (values.length === 0) return true;
+    const arrays = values.filter((v) => Array.isArray(v)) as unknown[][];
+    return arrays.length > 0 && arrays.every((a) => a.length === 0);
+  }
+  return false;
+}
+
 export async function sdvRequest<T>(
   request: () => Promise<T>,
   options?: SdvRequestOptions
@@ -200,7 +219,8 @@ export async function sdvRequest<T>(
     inflightByKey.set(cacheKey, promise);
     promise
       .then((value) => {
-        responseCache.set(cacheKey, { value, expiresAt: Date.now() + cacheTtlMs });
+        const ttl = isEmptyPayload(value) ? Math.min(cacheTtlMs, EMPTY_PAYLOAD_TTL_MS) : cacheTtlMs;
+        responseCache.set(cacheKey, { value, expiresAt: Date.now() + ttl });
         pruneResponseCache();
       })
       .catch((err) => {

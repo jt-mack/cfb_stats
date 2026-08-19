@@ -23,6 +23,14 @@ function seasontypeFromLabel(label: string | undefined): number {
   return 2;
 }
 
+/**
+ * Regular and postseason week numbers overlap (Week 1 vs Post 1), so the
+ * picker keys entries by season type + week.
+ */
+function entryKey(entry: { seasonType: string; week: number }): string {
+  return `${entry.seasonType}:${entry.week}`;
+}
+
 export default function ScoresPageClient() {
   const router = useRouter();
   const { year, seasonNum, isValidSeason } = useSeasonParams();
@@ -30,12 +38,20 @@ export default function ScoresPageClient() {
   const { data: calendar = [], isLoading: calLoading } = useCalendar(seasonNum);
 
   const defaultWeek = context?.currentWeek ?? calendar[0]?.week ?? 1;
-  const [week, setWeek] = useState<number | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const selectedWeek = week ?? defaultWeek;
-  const selectedEntry = calendar.find((w) => w.week === selectedWeek) ?? calendar[0];
+  const phaseType = context?.phase === "postseason" ? "postseason" : "regular";
+  const defaultEntry =
+    calendar.find((w) => w.seasonType === phaseType && w.week === defaultWeek) ??
+    calendar.find((w) => w.week === defaultWeek) ??
+    calendar[0];
+  const selectedEntry =
+    (selectedKey != null ? calendar.find((w) => entryKey(w) === selectedKey) : undefined) ??
+    defaultEntry;
+  const selectedWeek = selectedEntry?.week ?? defaultWeek;
   const seasontype = seasontypeFromLabel(selectedEntry?.seasonType);
+  const selectValue = selectedEntry ? entryKey(selectedEntry) : `regular:${defaultWeek}`;
 
   const { data: games = [], isLoading, isError } = useWeekGames(
     seasonNum,
@@ -60,11 +76,11 @@ export default function ScoresPageClient() {
   const weekOptions =
     calendar.length > 0
       ? calendar.map((w) => ({
-          value: String(w.week),
+          value: entryKey(w),
           label: `${w.seasonType === "postseason" ? "Post" : "Week"} ${w.week}`,
         }))
       : Array.from({ length: 15 }, (_, i) => i + 1).map((w) => ({
-          value: String(w),
+          value: `regular:${w}`,
           label: `Week ${w}`,
         }));
 
@@ -79,8 +95,8 @@ export default function ScoresPageClient() {
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Week</span>
           <Select
-            value={String(selectedWeek)}
-            onValueChange={(v) => setWeek(Number(v))}
+            value={selectValue}
+            onValueChange={(v) => setSelectedKey(v)}
           >
             <SelectTrigger className="w-[140px]" aria-label="Select week">
               <SelectValue />
@@ -112,7 +128,9 @@ export default function ScoresPageClient() {
           </Select>
         </div>
         <Button variant="link" size="sm" asChild>
-          <Link href={`/season/${year}/week/${selectedWeek}`}>Week page →</Link>
+          <Link href={`/season/${year}/week/${selectedWeek}?seasontype=${seasontype}`}>
+            Week page →
+          </Link>
         </Button>
       </div>
 
