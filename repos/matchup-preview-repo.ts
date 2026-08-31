@@ -3,16 +3,20 @@ import {
   GamesRepo,
   mapLeadersToPlayerStats,
   mapPicksToOdds,
+  mapScoringPlays,
+  mapSummaryGameLeaders,
   mapSummaryToGameDetail,
   normalizeSummary,
   summaryToPicks,
+  type GameLeaderEntry,
+  type ScoringPlayEntry,
 } from './games-repo';
 import { LeadersRepo } from './leaders-repo';
 import { buildMatchupFromSchedules, MatchupSeriesRepo } from './matchup-series-repo';
 import { TeamsRepo } from './teams-repo';
 import { fetchSeasonPowerIndex, mapPowerIndexToAdvancedStats } from './ratings-repo';
 import { getDefaultSeason } from '../lib/espn-client';
-import type { SdvParsedPowerIndexRow } from '../lib/espn-types';
+import type { SdvEspnTeam, SdvParsedPowerIndexRow } from '../lib/espn-types';
 import { teamIndex } from '../lib/team-index';
 import type {
   AdvancedSeasonStat,
@@ -37,6 +41,8 @@ export type GamePreview = {
   matchup: Matchup | null;
   advancedSeasonStats: AdvancedSeasonStat[];
   playerSeasonStats: PreviewPlayerStat[];
+  gameLeaders: GameLeaderEntry[];
+  scoringPlays: ScoringPlayEntry[];
   odds: PregameWinProbability | null;
   lines: import('../lib/types').BettingGame | null;
   media: import('../lib/types').GameMedia[];
@@ -56,6 +62,8 @@ const EMPTY_PREVIEW = (statsYear: number): GamePreview => ({
   matchup: null,
   advancedSeasonStats: [],
   playerSeasonStats: [],
+  gameLeaders: [],
+  scoringPlays: [],
   odds: null,
   lines: null,
   media: [],
@@ -77,6 +85,30 @@ function leaderEntriesToPlayerStats(entries: LeaderEntry[]): PlayerStat[] {
   }));
 }
 
+function brandColor(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  return `#${String(raw).replace('#', '')}`;
+}
+
+function competitorBrandBySchool(
+  competitions: Record<string, unknown>[] | undefined
+): Map<string, { color: string | null; alternateColor: string | null }> {
+  const brandBySchool = new Map<string, { color: string | null; alternateColor: string | null }>();
+  const competitors =
+    (competitions?.[0]?.competitors as Record<string, unknown>[] | undefined) ?? [];
+  for (const c of competitors) {
+    const t = c.team as SdvEspnTeam | undefined;
+    if (!t) continue;
+    const school = t.location ?? t.displayName ?? '';
+    if (!school) continue;
+    brandBySchool.set(school, {
+      color: brandColor(t.color),
+      alternateColor: brandColor(t.alternateColor),
+    });
+  }
+  return brandBySchool;
+}
+
 export class MatchupPreviewRepo {
   private teamsRepo = new TeamsRepo();
   private gamesRepo = new GamesRepo();
@@ -96,6 +128,11 @@ export class MatchupPreviewRepo {
       const year = season ?? game.season;
       const homeTeam = game.homeTeam;
       const awayTeam = game.awayTeam;
+
+      const leaders = (summaryRaw.leaders as Record<string, unknown>[] | undefined) ?? [];
+      const gameLeaders = mapSummaryGameLeaders(leaders);
+      const scoringPlays = completed ? mapScoringPlays(summaryRaw.scoringPlays) : [];
+      const { odds, lines, media, weather } = mapPicksToOdds(summaryToPicks(summaryRaw, gameId), game);
 
       let matchup: Matchup | null = null;
       try {
@@ -119,14 +156,15 @@ export class MatchupPreviewRepo {
         }
       }
 
-      const leaders = (summaryRaw.leaders as Record<string, unknown>[] | undefined) ?? [];
-
       let advancedSeasonStats: AdvancedSeasonStat[] = [];
       let effectiveStatsYear = year;
       let playerSeasonStats: PreviewPlayerStat[] = [];
 
       const defaultSeason = getDefaultSeason();
       const powerIndexYear = year > defaultSeason ? defaultSeason : year;
+      const header = summaryRaw.header as Record<string, unknown> | undefined;
+      const competitions = (header?.competitions as Record<string, unknown>[] | undefined) ?? [];
+      const brandBySchool = competitorBrandBySchool(competitions);
 
       if (powerIndexYear >= 2000) {
         const teams = await teamIndex.getAllTeams(powerIndexYear);
@@ -143,29 +181,15 @@ export class MatchupPreviewRepo {
         }
 
         advancedSeasonStats = mapPowerIndexToAdvancedStats(piRows, powerIndexYear, idToSchool)
-          .filter((s) => s.team === homeTeam || s.team === awayTeam);
-
-        const [homeInfo, awayInfo] = await Promise.all([
-          this.teamsRepo.getTeamInfo(homeTeam, powerIndexYear).catch(() => null),
-          this.teamsRepo.getTeamInfo(awayTeam, powerIndexYear).catch(() => null),
-        ]);
-        const brandBySchool = new Map<string, { color: string | null; alternateColor: string | null }>();
-        for (const info of [homeInfo, awayInfo]) {
-          if (info?.school) {
-            brandBySchool.set(info.school, {
-              color: info.color ?? null,
-              alternateColor: info.alternateColor ?? null,
-            });
-          }
-        }
-        advancedSeasonStats = advancedSeasonStats.map((s) => {
-          const brand = brandBySchool.get(s.team);
-          return {
-            ...s,
-            color: brand?.color ?? null,
-            alternateColor: brand?.alternateColor ?? null,
-          };
-        });
+          .filter((s) => s.team === homeTeam || s.team === awayTeam)
+          .map((s) => {
+            const brand = brandBySchool.get(s.team);
+            return {
+              ...s,
+              color: brand?.color ?? null,
+              alternateColor: brand?.alternateColor ?? null,
+            };
+          });
         effectiveStatsYear = powerIndexYear;
 
         if (!completed) {
@@ -217,16 +241,16 @@ export class MatchupPreviewRepo {
           matchup,
           advancedSeasonStats,
           playerSeasonStats: [],
+          gameLeaders,
+          scoringPlays,
           odds: null,
           lines: null,
-          media: [],
-          weather: null,
+          media,
+          weather,
           statsYear: effectiveStatsYear,
           statsLabel: STATS_LABEL,
         };
       }
-
-      const { odds, lines, media, weather } = mapPicksToOdds(summaryToPicks(summaryRaw, gameId), game);
 
       return {
         game,
@@ -235,6 +259,8 @@ export class MatchupPreviewRepo {
         matchup,
         advancedSeasonStats,
         playerSeasonStats,
+        gameLeaders,
+        scoringPlays: [],
         odds,
         lines,
         media,
@@ -248,8 +274,16 @@ export class MatchupPreviewRepo {
     }
   }
 
+  private teamMatches(statTeam: string, target: string): boolean {
+    const a = statTeam.toLowerCase();
+    const b = target.toLowerCase();
+    return a === b || a.includes(b) || b.includes(a);
+  }
+
   private pickLeaders(stats: PlayerStat[], homeTeam: string, awayTeam: string): PlayerStat[] {
-    const filtered = stats.filter((s) => s.team === homeTeam || s.team === awayTeam);
+    const filtered = stats.filter(
+      (s) => this.teamMatches(s.team, homeTeam) || this.teamMatches(s.team, awayTeam)
+    );
     const bestByCategory = new Map<string, PlayerStat>();
     for (const stat of filtered) {
       const categoryKey = LEADER_CATEGORIES.find(
@@ -257,11 +291,13 @@ export class MatchupPreviewRepo {
           stat.category?.toLowerCase().includes(c) || stat.statType?.toLowerCase().includes(c)
       );
       if (!categoryKey) continue;
-      const existing = bestByCategory.get(`${stat.team}:${categoryKey}`);
-      const statVal = parseFloat(String(stat.stat).replace(/,/g, ''));
-      const existingVal = existing ? parseFloat(String(existing.stat).replace(/,/g, '')) : -Infinity;
-      if (!existing || (!Number.isNaN(statVal) && statVal > existingVal)) {
-        bestByCategory.set(`${stat.team}:${categoryKey}`, stat);
+      const key = `${stat.team}:${categoryKey}`;
+      // ESPN already orders leaders; keep the first entry per team/category.
+      if (!bestByCategory.has(key)) {
+        bestByCategory.set(key, {
+          ...stat,
+          team: this.teamMatches(stat.team, homeTeam) ? homeTeam : awayTeam,
+        });
       }
     }
     return [...bestByCategory.values()];

@@ -1,5 +1,5 @@
 import { get } from "../apiClient";
-import type { GameWithOdds, GameDetail, GamePreview } from "../types";
+import type { GameWithOdds, GamePreview } from "../types";
 
 /**
  * Team schedule with optional odds (backend: GET /schedule/:team_name).
@@ -13,13 +13,6 @@ export async function getSchedule(
     season !== undefined ? { season } : undefined
   );
   return Array.isArray(data) ? data : [];
-}
-
-/**
- * Game detail: game, team stats, player stats, advanced box score (backend: GET /games/:id).
- */
-export async function getGameDetail(gameId: number): Promise<GameDetail> {
-  return get<GameDetail>(`/games/${gameId}`);
 }
 
 /**

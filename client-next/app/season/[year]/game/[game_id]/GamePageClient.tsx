@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useGameDrives, useGamePlays, useGamePreview } from "@/lib/hooks/queries";
+import { useGameDrives, useGamePreview } from "@/lib/hooks/queries";
 import { normalizeEspnDrive, normalizeEspnPlay } from "@/lib/format";
 import { PlayerCard } from "@/components/cards/PlayerCard";
 import { BarChart } from "@/components/charts/BarChart";
@@ -18,6 +18,8 @@ import {
 import { GameCard } from "@/components/cards/GameCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+
 type GamePageClientProps = {
   year: string;
   gameId: string;
@@ -45,11 +47,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
     validId ? id : undefined,
     loadPlayByPlay
   );
-  const { data: playsRaw, isLoading: playsLoading } = useGamePlays(
-    validId ? id : undefined,
-    loadPlayByPlay
-  );
-  const playByPlayLoading = loadPlayByPlay && (drivesLoading || playsLoading);
+  const playByPlayLoading = loadPlayByPlay && drivesLoading;
 
   const drives = useMemo(() => {
     if (!preview?.game || !Array.isArray(drivesRaw) || !drivesRaw.length) return [];
@@ -58,10 +56,14 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
     );
   }, [drivesRaw, preview?.game]);
 
-  const plays = useMemo(
-    () => (Array.isArray(playsRaw) ? playsRaw.map(normalizeEspnPlay) : []),
-    [playsRaw]
-  );
+  // Plays are nested on each drive — no separate /plays request.
+  const plays = useMemo(() => {
+    if (!Array.isArray(drivesRaw) || !drivesRaw.length) return [];
+    return drivesRaw.flatMap((drive) => {
+      const nested = (drive as { plays?: Record<string, unknown>[] }).plays;
+      return Array.isArray(nested) ? nested.map(normalizeEspnPlay) : [];
+    });
+  }, [drivesRaw]);
 
   const seasonStatsChart = useMemo(() => {
     if (!preview?.advancedSeasonStats?.length) return null;
@@ -91,6 +93,18 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
       })),
     }));
   }, [preview?.playerSeasonStats]);
+
+  const gameLeadersByTeam = useMemo(() => {
+    const entries = preview?.gameLeaders ?? [];
+    if (!entries.length) return [];
+    const grouped = new Map<string, typeof entries>();
+    for (const e of entries) {
+      const list = grouped.get(e.team) ?? [];
+      list.push(e);
+      grouped.set(e.team, list);
+    }
+    return [...grouped.entries()];
+  }, [preview?.gameLeaders]);
 
   if (!validId) {
     return <div className="py-8 text-center text-muted-foreground">Invalid game id</div>;
@@ -141,8 +155,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   const overUnder = preview.lines?.lines?.[0]?.overUnder;
   const mediaOutlets = preview.media?.map((m) => m.outlet).filter(Boolean) ?? [];
   const weather = preview.weather;
-
-  console.log({ preview, teams })
+  const scoringPlays = preview.scoringPlays ?? [];
 
   return (
     <div className="space-y-6 min-w-0">
@@ -170,7 +183,18 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
             </TableHeader>
             <TableBody>
               <TableRow className="border-border">
-                <TableCell className="text-foreground">{game.awayTeam}</TableCell>
+                <TableCell className="text-foreground">
+                  {game.awayTeamId != null ? (
+                    <Link
+                      href={`/season/${year}/team/${game.awayTeamId}/overview`}
+                      className="hover:underline underline-offset-2"
+                    >
+                      {game.awayTeam}
+                    </Link>
+                  ) : (
+                    game.awayTeam
+                  )}
+                </TableCell>
                 {game.awayLineScores?.map((s, i) => (
                   <TableCell key={i} className="text-center text-foreground/80">{s}</TableCell>
                 ))}
@@ -179,7 +203,18 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
                 </TableCell>
               </TableRow>
               <TableRow className="border-border">
-                <TableCell className="text-foreground">{game.homeTeam}</TableCell>
+                <TableCell className="text-foreground">
+                  {game.homeTeamId != null ? (
+                    <Link
+                      href={`/season/${year}/team/${game.homeTeamId}/overview`}
+                      className="hover:underline underline-offset-2"
+                    >
+                      {game.homeTeam}
+                    </Link>
+                  ) : (
+                    game.homeTeam
+                  )}
+                </TableCell>
                 {game.homeLineScores?.map((s, i) => (
                   <TableCell key={i} className="text-center text-foreground/80">{s}</TableCell>
                 ))}
@@ -192,8 +227,31 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+      {scoringPlays.length > 0 && (
+        <div className="rounded-md border border-border bg-muted/50 px-4 py-3 space-y-2">
+          <h5 className="text-sm font-medium text-foreground/80 text-center">Scoring Summary</h5>
+          <ul className="space-y-1 max-h-48 overflow-y-auto text-xs text-muted-foreground">
+            {scoringPlays.map((sp) => (
+              <li key={sp.id} className="flex flex-wrap gap-x-2 justify-center">
+                <span className="text-foreground/80">
+                  Q{sp.period}
+                  {sp.clock ? ` ${sp.clock}` : ""}
+                </span>
+                <span className="text-foreground">{sp.team}</span>
+                {sp.scoringType ? <span>{sp.scoringType}</span> : null}
+                <span>{sp.text}</span>
+                {sp.awayScore != null && sp.homeScore != null && (
+                  <span className="text-foreground/70">
+                    ({sp.awayScore}-{sp.homeScore})
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {seasonStatsChart && seasonStatsChart.datasets.length > 0 && (
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground text-center">
@@ -239,7 +297,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
           {weather.condition?.description ?? "Weather forecast"}
           {weather.temperature != null && ` · ${weather.temperature}°F`}
           {weather.windSpeed != null && ` · Wind ${weather.windSpeed} mph`}
-          {weather.precipitation != null && weather.precipitation > 0 && ` · Precip ${weather.precipitation}"`}
+          {weather.precipitation != null && weather.precipitation > 0 && ` · Precip ${weather.precipitation}%`}
         </div>
       )}
 
@@ -267,6 +325,27 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
         </div>
       )}
 
+      {gameLeadersByTeam.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {gameLeadersByTeam.map(([team, leaders]) => (
+            <div key={team} className="rounded-md border border-border bg-card px-3 py-3 space-y-2">
+              <h3 className="text-sm font-medium text-foreground/80 text-center">{team} Top Performers</h3>
+              <ul className="space-y-1.5 text-sm">
+                {leaders.map((l, i) => (
+                  <li key={`${l.category}-${i}`} className="flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                    <span className="text-muted-foreground">{l.category}</span>
+                    <span className="text-foreground">
+                      {l.player}
+                      <span className="text-muted-foreground ml-2">{l.displayValue}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+
       {boxScoreDatasets.length > 0 && boxScoreLabels.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-foreground/80 text-center">Team Stats</h3>
@@ -278,19 +357,17 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
         <div key={idx} className="space-y-2">
           <h3 className="text-sm font-medium text-foreground/80">{teamGroup.team} Box Score Leaders</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            {teamGroup.categories?.flatMap((cat) =>
-              cat.types?.flatMap((type) =>
-                (type.athletes ?? []).slice(0, 1).map((a) => (
-                  <div
-                    key={`${cat.name}-${type.name}-${a.id}`}
-                    className="rounded border border-border bg-card px-3 py-2"
-                  >
-                    <span className="text-muted-foreground">{type.name}: </span>
-                    <span className="text-foreground">{a.name}</span>
-                    <span className="text-muted-foreground ml-2">{a.stat}</span>
-                  </div>
-                ))
-              )
+            {(teamGroup.categories ?? []).flatMap((cat) =>
+              (cat.athletes ?? []).slice(0, 1).map((a) => (
+                <div
+                  key={`${cat.name}-${a.id}`}
+                  className="rounded border border-border bg-card px-3 py-2"
+                >
+                  <span className="text-muted-foreground">{cat.name}: </span>
+                  <span className="text-foreground">{a.name}</span>
+                  <span className="text-muted-foreground ml-2">{a.stat}</span>
+                </div>
+              ))
             )}
           </div>
         </div>

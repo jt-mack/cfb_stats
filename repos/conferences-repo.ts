@@ -91,6 +91,7 @@ export function mapParsedStandingsToRecord(
     conference,
     total: parseRecord(overall),
     conferenceGames: parseRecord(vsConf),
+    logo: row.team_logo ?? null,
   };
 }
 
@@ -132,6 +133,7 @@ export function mapStandingsEntryToRecord(
     conference,
     total: parseRecord(overall?.displayValue),
     conferenceGames: parseRecord(conf?.displayValue),
+    logo: team?.logo ?? team?.logos?.[0]?.href ?? null,
   };
 }
 

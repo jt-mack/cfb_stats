@@ -77,7 +77,7 @@ export class ScoreboardRepo {
         parsed: true,
       })) as SdvParsedScoreboardRow[];
     }, { cacheKey: 'liveScoreboard', cacheTtlMs: 60 * 1000 });
-    return rows.map((r) => mapParsedScoreboardRow(r, r.season_type ?? REGULAR_SEASON_TYPE));
+    return rows.map((r) => mapParsedScoreboardRow(r, 0));
   }
 
   async getCalendar(year: number): Promise<CalendarWeek[]> {

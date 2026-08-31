@@ -28,7 +28,28 @@ export function GameCard({ game, year }: { game: Game; year: number }) {
                         <Link href={`/season/${year}`}>← Back to season</Link>
                     </Button>
                     <h1 className="text-xl sm:text-2xl font-semibold text-foreground mt-2">
-                        Week {game.week}: {game.awayTeam} @ {game.homeTeam}
+                        Week {game.week}:{" "}
+                        {game.awayTeamId != null ? (
+                            <Link
+                                href={`/season/${year}/team/${game.awayTeamId}/overview`}
+                                className="hover:underline underline-offset-2"
+                            >
+                                {game.awayTeam}
+                            </Link>
+                        ) : (
+                            game.awayTeam
+                        )}
+                        {" @ "}
+                        {game.homeTeamId != null ? (
+                            <Link
+                                href={`/season/${year}/team/${game.homeTeamId}/overview`}
+                                className="hover:underline underline-offset-2"
+                            >
+                                {game.homeTeam}
+                            </Link>
+                        ) : (
+                            game.homeTeam
+                        )}
                     </h1>
                     {game.startDate && (
                         <p className="text-sm text-muted-foreground">{formatSeasonDate(game.startDate)}</p>

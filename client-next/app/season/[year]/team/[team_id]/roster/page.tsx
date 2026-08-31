@@ -5,5 +5,5 @@ import { useTeamPage } from "../TeamPageContext";
 
 export default function TeamRosterPage() {
   const { team, year } = useTeamPage();
-  return <Roster teamId={String(team.id)} season={year} />;
+  return <Roster teamId={String(team.id)} season={year} team={team} />;
 }

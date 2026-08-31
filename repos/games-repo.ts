@@ -6,14 +6,12 @@ import type {
   SdvCfbSummaryRaw,
   SdvEspnTeam,
   SdvParsedScoreboardRow,
-  SdvTeamScheduleResponse,
 } from '../lib/espn-types';
 import {
   getTeamSchedule,
   mapScheduleEvent,
   mapScoreboardRowsToGames,
 } from '../lib/schedule-service';
-import { teamIndex } from '../lib/team-index';
 import type {
   AdvancedBoxScoreData,
   BettingGame,
@@ -28,7 +26,6 @@ import type {
   PregameWinProbability,
   Venue,
 } from '../lib/types';
-import { extractOddsFromRawSchedule } from './ratings-repo';
 import { normalizeVenue } from '../utils/format';
 
 function num(value: unknown): number | null {
@@ -81,6 +78,7 @@ export function summaryToPicks(raw: SdvCfbSummaryRaw, gameId?: number): SdvCfbPi
     season: header.season,
     week: header.week,
     standings: raw.standings,
+    predictor: raw.predictor,
   };
 }
 
@@ -152,23 +150,26 @@ export function mapSummaryToGameDetail(summary: SdvCfbSummary): GameDetail {
       teams: playerBox.map((group) => {
         const teamInfo = group.team as SdvEspnTeam;
         const statistics = (group.statistics as Record<string, unknown>[] | undefined) ?? [];
+        // ESPN puts athletes directly on each statistics category (no `types` nesting).
         const categories = statistics.map((cat) => {
-          const types = (cat.types as Record<string, unknown>[] | undefined) ?? [];
+          const athletes = (cat.athletes as Record<string, unknown>[] | undefined) ?? [];
+          const labels = (cat.labels as string[] | undefined) ?? [];
           return {
             name: String(cat.name ?? cat.text ?? ''),
-            types: types.map((type) => {
-              const athletes = (type.athletes as Record<string, unknown>[] | undefined) ?? [];
+            athletes: athletes.map((a) => {
+              const athlete = a.athlete as { id?: string; displayName?: string; fullName?: string };
+              const stats = (a.stats as string[] | undefined) ?? [];
+              const paired =
+                labels.length > 0
+                  ? stats
+                      .map((s, i) => (labels[i] ? `${labels[i]} ${s}` : s))
+                      .filter(Boolean)
+                      .join(', ')
+                  : stats.join(' ');
               return {
-                name: String(type.name ?? type.text ?? ''),
-                athletes: athletes.map((a) => {
-                  const athlete = a.athlete as { id?: string; displayName?: string; fullName?: string };
-                  const stats = (a.stats as string[] | undefined) ?? [];
-                  return {
-                    id: String(athlete?.id ?? ''),
-                    name: athlete?.displayName ?? athlete?.fullName ?? '',
-                    stat: stats.join(' '),
-                  };
-                }),
+                id: String(athlete?.id ?? ''),
+                name: athlete?.displayName ?? athlete?.fullName ?? '',
+                stat: paired,
               };
             }),
           };
@@ -207,18 +208,23 @@ export function mapPicksToOdds(picks: SdvCfbPicks, game: Game): {
   let homeWinProbability = 0.5;
   if (firstOdds) {
     spread = num(firstOdds.spread) ?? 0;
-    const homeOdds = firstOdds.homeTeamOdds as { winPercentage?: number } | undefined;
-    if (homeOdds?.winPercentage != null) {
-      homeWinProbability = homeOdds.winPercentage;
+  }
+
+  // ESPN Matchup Predictor — pickcenter does not include winPercentage.
+  const predictor = picks.predictor as {
+    homeTeam?: { gameProjection?: string | number };
+  } | undefined;
+  const projection = num(predictor?.homeTeam?.gameProjection);
+  if (projection != null) {
+    homeWinProbability = projection > 1 ? projection / 100 : projection;
+  } else {
+    const winProbArr = (picks.winProbability as { homeWinPercentage?: number }[] | undefined) ?? [];
+    if (winProbArr[0]?.homeWinPercentage != null) {
+      homeWinProbability = winProbArr[0].homeWinPercentage;
     }
   }
 
-  const winProbArr = (picks.winProbability as { homeWinPercentage?: number }[] | undefined) ?? [];
-  if (homeWinProbability === 0.5 && winProbArr[0]?.homeWinPercentage != null) {
-    homeWinProbability = winProbArr[0].homeWinPercentage;
-  }
-
-  const odds: PregameWinProbability | null = firstOdds
+  const odds: PregameWinProbability | null = firstOdds || projection != null
     ? { gameId: game.id, homeTeam: game.homeTeam, awayTeam: game.awayTeam, spread, homeWinProbability }
     : null;
 
@@ -229,28 +235,52 @@ export function mapPicksToOdds(picks: SdvCfbPicks, game: Game): {
     }
     : null;
 
-  const broadcasts =
-    (picks.gameInfo as { broadcasts?: { names?: string[]; type?: { shortName?: string } }[] })?.broadcasts ?? [];
-  const media: GameMedia[] = broadcasts.flatMap((b) =>
-    (b.names ?? []).map((name) => ({
-      outlet: name,
-      mediaType: b.type?.shortName ?? 'TV',
-      homeTeam: game.homeTeam,
-      awayTeam: game.awayTeam,
-    }))
-  );
+  // Broadcasts live on header.competitions[0], not gameInfo.
+  const header = picks.header as Record<string, unknown> | undefined;
+  const competitions = (header?.competitions as Record<string, unknown>[] | undefined) ?? [];
+  const headerBroadcasts =
+    (competitions[0]?.broadcasts as {
+      names?: string[];
+      media?: { shortName?: string };
+      type?: { shortName?: string };
+    }[] | undefined) ?? [];
+  const media: GameMedia[] = headerBroadcasts.flatMap((b) => {
+    const outlet = b.media?.shortName ?? b.names?.[0];
+    if (!outlet) return [];
+    return [
+      {
+        outlet,
+        mediaType: b.type?.shortName ?? 'TV',
+        homeTeam: game.homeTeam,
+        awayTeam: game.awayTeam,
+      },
+    ];
+  });
 
-  const weatherInfo = (picks.gameInfo as { weather?: Record<string, unknown> })?.weather;
+  const gameInfo = picks.gameInfo as {
+    weather?: Record<string, unknown>;
+    venue?: { indoor?: boolean };
+  } | undefined;
+  const weatherInfo = gameInfo?.weather;
   const weather: GameWeather | null = weatherInfo
     ? {
-      gameIndoors: Boolean(weatherInfo.indoor),
+      gameIndoors: Boolean(gameInfo?.venue?.indoor ?? game.venue?.indoor),
       temperature: num(weatherInfo.temperature),
       humidity: num(weatherInfo.humidity),
-      windSpeed: num(weatherInfo.windSpeed),
+      windSpeed: num(weatherInfo.gust ?? weatherInfo.windSpeed),
       windDirection: num(weatherInfo.windDirection),
       precipitation: num(weatherInfo.precipitation),
       snowfall: num(weatherInfo.snowfall),
-      condition: { description: String(weatherInfo.displayValue ?? '') },
+      condition: {
+        description: String(
+          weatherInfo.displayValue ??
+            (weatherInfo.precipitation != null && Number(weatherInfo.precipitation) > 0
+              ? `Precip ${weatherInfo.precipitation}%`
+              : weatherInfo.temperature != null
+                ? `${weatherInfo.temperature}°F`
+                : 'Weather forecast')
+        ),
+      },
     }
     : null;
 
@@ -260,24 +290,82 @@ export function mapPicksToOdds(picks: SdvCfbPicks, game: Game): {
 export function mapLeadersToPlayerStats(leaders: Record<string, unknown>[], season: number): PlayerStat[] {
   const results: PlayerStat[] = [];
   for (const group of leaders) {
-    const category = String(group.name ?? group.displayName ?? '');
-    const leaderList = (group.leaders as Record<string, unknown>[] | undefined) ?? [];
-    for (const leader of leaderList) {
-      const athlete = leader.athlete as { id?: string; displayName?: string; position?: { abbreviation?: string } };
-      const team = leader.team as SdvEspnTeam;
-      results.push({
-        playerId: String(athlete?.id ?? ''),
-        player: athlete?.displayName ?? '',
-        team: team?.location ?? team?.displayName ?? '',
-        position: athlete?.position?.abbreviation ?? '',
-        category,
-        statType: category,
-        stat: String(leader.displayValue ?? leader.value ?? ''),
-        season,
-      });
+    const teamInfo = group.team as SdvEspnTeam | undefined;
+    const teamName = teamInfo?.location ?? teamInfo?.displayName ?? teamInfo?.shortDisplayName ?? '';
+    const categories = (group.leaders as Record<string, unknown>[] | undefined) ?? [];
+    for (const category of categories) {
+      const categoryName = String(category.displayName ?? category.name ?? '');
+      const categoryLeaders = (category.leaders as Record<string, unknown>[] | undefined) ?? [];
+      for (const leader of categoryLeaders) {
+        const athlete = leader.athlete as {
+          id?: string;
+          displayName?: string;
+          position?: { abbreviation?: string };
+        };
+        const leaderTeam = (leader.team as SdvEspnTeam | undefined) ?? teamInfo;
+        results.push({
+          playerId: String(athlete?.id ?? ''),
+          player: athlete?.displayName ?? '',
+          team: leaderTeam?.location ?? leaderTeam?.displayName ?? teamName,
+          position: athlete?.position?.abbreviation ?? '',
+          category: categoryName,
+          statType: categoryName,
+          stat: String(leader.displayValue ?? leader.value ?? ''),
+          season,
+        });
+      }
     }
   }
   return results;
+}
+
+export type GameLeaderEntry = {
+  team: string;
+  category: string;
+  player: string;
+  displayValue: string;
+};
+
+/** Map ESPN summary leaders into flat game top-performer rows. */
+export function mapSummaryGameLeaders(leaders: Record<string, unknown>[]): GameLeaderEntry[] {
+  return mapLeadersToPlayerStats(leaders, 0).map((s) => ({
+    team: s.team,
+    category: s.category,
+    player: s.player,
+    displayValue: s.stat,
+  }));
+}
+
+export type ScoringPlayEntry = {
+  id: string;
+  text: string;
+  team: string;
+  period: number;
+  clock: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  scoringType: string;
+};
+
+export function mapScoringPlays(raw: unknown): ScoringPlayEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((play, index) => {
+    const p = play as Record<string, unknown>;
+    const team = p.team as SdvEspnTeam | undefined;
+    const clock = p.clock as { displayValue?: string } | undefined;
+    const period = p.period as { number?: number } | number | undefined;
+    const scoringType = p.scoringType as { displayName?: string; name?: string } | undefined;
+    return {
+      id: String(p.id ?? index),
+      text: String(p.text ?? p.shortText ?? ''),
+      team: team?.location ?? team?.displayName ?? team?.abbreviation ?? '',
+      period: typeof period === 'number' ? period : period?.number ?? 0,
+      clock: clock?.displayValue ?? '',
+      homeScore: num(p.homeScore),
+      awayScore: num(p.awayScore),
+      scoringType: scoringType?.displayName ?? scoringType?.name ?? '',
+    };
+  });
 }
 
 export class GamesRepo {
@@ -286,23 +374,9 @@ export class GamesRepo {
   }
 
   async getScheduleWithOdds(team: string, year: number): Promise<GameWithOdds[]> {
-    const teamId = await teamIndex.resolveTeamId(team, year);
+    // Team schedule competitions do not include odds; enrichment endpoint covers that.
     const games = await this.getSchedule(team, year);
-    if (!teamId) return games.map((g) => ({ ...g, odds: undefined }));
-
-    try {
-      const raw = await sdvRequest(async () => {
-        const cfb = await getCfb();
-        return (await cfb.espnCfbTeamSchedule({
-          team_id: String(teamId),
-          season: year,
-        })) as SdvTeamScheduleResponse;
-      }, { cacheKey: `scheduleRaw:${team}:${year}`, cacheTtlMs: 15 * 60 * 1000 });
-      return extractOddsFromRawSchedule(raw.events ?? [], games);
-    } catch (err) {
-      console.warn(`Schedule odds unavailable for ${team} ${year}:`, err instanceof Error ? err.message : err);
-      return games.map((g) => ({ ...g, odds: undefined }));
-    }
+    return games.map((g) => ({ ...g, odds: undefined }));
   }
 
   async getGameSummaryRaw(gameId: number): Promise<SdvCfbSummaryRaw> {

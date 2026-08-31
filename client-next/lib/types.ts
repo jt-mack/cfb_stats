@@ -85,6 +85,7 @@ export interface TeamRecords {
   conference: string;
   total: TeamRecord;
   conferenceGames: TeamRecord;
+  logo?: string | null;
 }
 
 export interface RosterPlayer {
@@ -119,6 +120,8 @@ export interface Game {
   venue?: Venue | null;
   homeTeam: string;
   awayTeam: string;
+  homeTeamId?: number | null;
+  awayTeamId?: number | null;
   homePoints: number | null;
   awayPoints: number | null;
   homeLineScores: number[] | null;
@@ -157,10 +160,7 @@ export interface GamePlayerStatEntry {
     team: string;
     categories: {
       name: string;
-      types: {
-        name: string;
-        athletes: { id: string; name: string; stat: string }[];
-      }[];
+      athletes: { id: string; name: string; stat: string }[];
     }[];
   }[];
 }
@@ -217,6 +217,22 @@ export interface GamePreview {
     alternateColor?: string | null;
   }[];
   playerSeasonStats: PreviewPlayerStat[];
+  gameLeaders?: {
+    team: string;
+    category: string;
+    player: string;
+    displayValue: string;
+  }[];
+  scoringPlays?: {
+    id: string;
+    text: string;
+    team: string;
+    period: number;
+    clock: string;
+    homeScore: number | null;
+    awayScore: number | null;
+    scoringType: string;
+  }[];
   odds: PregameWinProbability | null;
   lines: {
     lines: { spread: number; overUnder: number; provider: string }[];

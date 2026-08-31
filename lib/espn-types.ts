@@ -26,6 +26,8 @@ export interface SdvEspnTeam {
   rank?: number;
   standingSummary?: string;
   logos?: { href?: string }[];
+  /** Standings entries often expose a single logo URL string. */
+  logo?: string;
   links?: unknown[];
   /** ESPN may return groups as an object (`{ id }`) or as an array of groups. */
   groups?:
@@ -184,6 +186,7 @@ export interface SdvCfbSummaryRaw {
   odds?: unknown;
   againstTheSpread?: unknown;
   standings?: unknown;
+  predictor?: unknown;
 }
 
 /** Raw response from `espnCfbTeam({ team_id })`. */
@@ -265,6 +268,7 @@ export interface SdvCfbPicks {
   season: unknown;
   week: unknown;
   standings: unknown;
+  predictor: unknown;
 }
 
 export interface SdvTeamScheduleResponse {

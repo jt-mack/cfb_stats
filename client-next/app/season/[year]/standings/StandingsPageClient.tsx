@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
-import { useConferences, useFbsStandings, useStandings, useTeams } from "@/lib/hooks/queries";
+import { useConferences, useFbsStandings, useStandings } from "@/lib/hooks/queries";
 import { StandingsTable } from "@/components/tables/StandingsTable";
 import type { StandingsRow } from "@/components/tables/StandingsTable";
 import { PageSpinner, PageError } from "@/components/PageSpinner";
@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 export default function StandingsPageClient() {
   const { year, seasonNum, isValidSeason } = useSeasonParams();
   const { data: conferences = [] } = useConferences();
-  const { data: teams = [] } = useTeams(seasonNum);
   const [view, setView] = useState<"conference" | "fbs">("conference");
   const fbsConfs = useMemo(
     () => conferences.filter((c) => c.classification === "fbs" && c.id !== 80),
@@ -36,19 +35,11 @@ export default function StandingsPageClient() {
     view === "fbs" ? seasonNum : undefined
   );
 
-  const logoById = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const t of teams) {
-      if (t.id && t.logos?.[0]) map.set(t.id, t.logos[0]);
-    }
-    return map;
-  }, [teams]);
-
   const records = view === "fbs" ? fbsRecords : confRecords;
   const standings: StandingsRow[] = records.map((rec) => ({
     name: rec.team,
     id: rec.teamId,
-    logo: logoById.get(rec.teamId) ?? "",
+    logo: rec.logo ?? "",
     record: rec.total ? `${rec.total.wins}-${rec.total.losses}` : "—",
     conferenceRecord: rec.conferenceGames
       ? `${rec.conferenceGames.wins}-${rec.conferenceGames.losses}`

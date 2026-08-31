@@ -28,6 +28,19 @@ function num(value: unknown): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+/** ESPN summary linescores use `displayValue`; some schedule payloads use `value`. */
+function mapLineScores(
+  linescores: { value?: number | string; displayValue?: string }[] | undefined
+): number[] | null {
+  if (!linescores?.length) return null;
+  return linescores.map((l) => {
+    const fromValue = num(l.value);
+    if (fromValue != null) return fromValue;
+    const fromDisplay = num(l.displayValue);
+    return fromDisplay ?? 0;
+  });
+}
+
 export function mapParsedScoreboardRow(row: SdvParsedScoreboardRow, week = 0): Game {
   const homeScore = num(row.home_score);
   const awayScore = num(row.away_score);
@@ -52,6 +65,8 @@ export function mapParsedScoreboardRow(row: SdvParsedScoreboardRow, week = 0): G
     },
     homeTeam: row.home_location ?? row.home_display_name ?? '',
     awayTeam: row.away_location ?? row.away_display_name ?? '',
+    homeTeamId: num(row.home_id),
+    awayTeamId: num(row.away_id),
     homePoints: homeScore,
     awayPoints: awayScore,
     homeLineScores: null,
@@ -96,10 +111,16 @@ export function mapParsedTeamScheduleRow(row: SdvParsedTeamScheduleRow): Game {
     venue: (comp?.venue as Venue | undefined) ?? null,
     homeTeam: homeName,
     awayTeam: awayName,
+    homeTeamId: typeof homeTeam === 'object' ? num(homeTeam?.id) : null,
+    awayTeamId: typeof awayTeam === 'object' ? num(awayTeam?.id) : null,
     homePoints: homeScore,
     awayPoints: awayScore,
-    homeLineScores: (home?.linescores as { value?: number }[] | undefined)?.map((l) => l.value ?? 0) ?? null,
-    awayLineScores: (away?.linescores as { value?: number }[] | undefined)?.map((l) => l.value ?? 0) ?? null,
+    homeLineScores: mapLineScores(
+      home?.linescores as { value?: number | string; displayValue?: string }[] | undefined
+    ),
+    awayLineScores: mapLineScores(
+      away?.linescores as { value?: number | string; displayValue?: string }[] | undefined
+    ),
     status: status?.type?.description,
   };
 }
@@ -128,10 +149,16 @@ export function mapScheduleEvent(event: Record<string, unknown>, season: number)
     venue,
     homeTeam: homeTeam?.location ?? homeTeam?.displayName ?? '',
     awayTeam: awayTeam?.location ?? awayTeam?.displayName ?? '',
+    homeTeamId: num(homeTeam?.id),
+    awayTeamId: num(awayTeam?.id),
     homePoints: homeScore,
     awayPoints: awayScore,
-    homeLineScores: (home?.linescores as { value?: number }[] | undefined)?.map((l) => l.value ?? 0) ?? null,
-    awayLineScores: (away?.linescores as { value?: number }[] | undefined)?.map((l) => l.value ?? 0) ?? null,
+    homeLineScores: mapLineScores(
+      home?.linescores as { value?: number | string; displayValue?: string }[] | undefined
+    ),
+    awayLineScores: mapLineScores(
+      away?.linescores as { value?: number | string; displayValue?: string }[] | undefined
+    ),
     status: status?.type?.description,
   };
 }

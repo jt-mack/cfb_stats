@@ -1,7 +1,7 @@
 import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
 import type { SdvParsedPowerIndexRow, SdvPredictiveMetric, SdvTeamScheduleResponse } from '../lib/espn-types';
 import { teamIndex } from '../lib/team-index';
-import type { AdvancedSeasonStat, GameWithOdds, PregameWinProbability } from '../lib/types';
+import type { AdvancedSeasonStat } from '../lib/types';
 
 export type TeamRatingEntry = {
   team: string;
@@ -225,42 +225,3 @@ export class RatingsRepo {
     };
   }
 }
-
-function extractOddsFromRawSchedule(
-  events: Record<string, unknown>[],
-  games: import('../lib/types').Game[]
-): GameWithOdds[] {
-  const oddsByGameId = new Map<number, PregameWinProbability>();
-
-  for (const event of events) {
-    const comp = (event.competitions as Record<string, unknown>[] | undefined)?.[0];
-    const gameId = Number(event.id);
-    const oddsArr = comp?.odds as
-      | { spread?: number; homeTeamOdds?: { winPercentage?: number } }[]
-      | undefined;
-    const first = oddsArr?.[0];
-    if (!first || !gameId) continue;
-
-    const competitors = (comp?.competitors as Record<string, unknown>[] | undefined) ?? [];
-    const home = competitors.find((c) => c.homeAway === 'home');
-    const away = competitors.find((c) => c.homeAway === 'away');
-    const homeTeam = (home?.team as { location?: string; displayName?: string })?.location
-      ?? (home?.team as { displayName?: string })?.displayName
-      ?? '';
-    const awayTeam = (away?.team as { location?: string; displayName?: string })?.location
-      ?? (away?.team as { displayName?: string })?.displayName
-      ?? '';
-
-    oddsByGameId.set(gameId, {
-      gameId,
-      homeTeam,
-      awayTeam,
-      spread: first.spread ?? 0,
-      homeWinProbability: first.homeTeamOdds?.winPercentage ?? 0.5,
-    });
-  }
-
-  return games.map((g) => ({ ...g, odds: oddsByGameId.get(g.id) }));
-}
-
-export { extractOddsFromRawSchedule };

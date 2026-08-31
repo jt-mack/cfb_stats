@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -10,10 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatHeightInches } from "@/lib/format";
 import type { RosterPlayer, Team } from "@/lib/types";
 import { ArrowDownNarrowWide, ArrowDownWideNarrow } from "lucide-react";
-import { useRoster, useTeamInfo, useTeams } from "@/lib/hooks/queries";
+import { useRoster } from "@/lib/hooks/queries";
 import { useActiveSeason } from "@/context/GlobalStateContext";
 import { getFeatureAvailability } from "@/lib/activeSeasonFeatures";
 import { PageSpinner, PageError } from "@/components/PageSpinner";
@@ -27,9 +25,10 @@ function fullName(p: RosterPlayer): string {
 type RosterProps = {
   teamId: string;
   season: string;
+  team?: Team;
 };
 
-export function Roster({ teamId, season }: RosterProps) {
+export function Roster({ teamId, season, team }: RosterProps) {
   const seasonNum = season ? Number(season) : undefined;
   const activeSeason = useActiveSeason();
   const availability = getFeatureAvailability("roster", seasonNum, activeSeason);
@@ -38,8 +37,6 @@ export function Roster({ teamId, season }: RosterProps) {
     seasonNum,
     availability.enabled
   );
-  const { data: team = [] } = useTeamInfo(teamId, seasonNum);
-  const teamData = team as Team | undefined;
   const [positionFilter, setPositionFilter] = useState("all");
   const [sortMode, setSortMode] = useState<"number" | "name">("number");
 
@@ -110,30 +107,8 @@ export function Roster({ teamId, season }: RosterProps) {
       </div>
       {sortedAndFiltered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* {sortedAndFiltered.map((player) => (
-            <Card key={player.id} className="border-border bg-card overflow-hidden">
-              <CardContent className="p-4 flex gap-3">
-                <div className="shrink-0 w-14 h-14 rounded bg-muted flex items-center justify-center text-foreground font-medium">
-                  #{player.jersey ?? "—"}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-foreground truncate">{fullName(player)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    #{player.jersey ?? "—"} • {player.position ?? "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatHeightInches(player.height)} •{" "}
-                    {player.weight != null ? `${player.weight} lbs` : "—"}
-                  </p>
-                  {player.year != null && (
-                    <p className="text-xs text-muted-foreground">Year: {player.year}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))} */}
           {sortedAndFiltered.map((player) => (
-            <PlayerCard key={player.id} player={player} variant="roster" imgSize="thumbnail" team={teamData} />
+            <PlayerCard key={player.id} player={player} variant="roster" imgSize="thumbnail" team={team} />
           ))}
         </div>
       ) : (
