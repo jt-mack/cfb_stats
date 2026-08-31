@@ -38,7 +38,6 @@ export const UI_FIELD_INVENTORY = {
     'displayValue',
     'season',
   ] as const,
-  depthChart: ['teamId', 'season', 'available', 'players'] as const,
   calendarWeek: ['season', 'week', 'seasonType', 'startDate', 'endDate'] as const,
 } as const;
 

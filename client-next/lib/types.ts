@@ -299,6 +299,7 @@ export interface LeaderEntry {
   teamId: number;
   team: string;
   position: string | null;
+  jersey?: number | null;
   category: string;
   categoryDisplay: string;
   value: number;
@@ -329,20 +330,4 @@ export interface PollWeek {
   week: number;
   polls: Poll[];
   headline?: string;
-}
-
-export interface DepthChartPlayer {
-  athleteId: string;
-  name: string;
-  jersey: string | null;
-  position: string;
-  rank: number;
-  unit: string;
-}
-
-export interface DepthChart {
-  teamId: number;
-  season: number;
-  available: boolean;
-  players: DepthChartPlayer[];
 }

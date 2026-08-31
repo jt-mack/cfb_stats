@@ -44,7 +44,6 @@ import {
 } from '../../repos/ratings-repo';
 import { NewsRepo } from '../../repos/news-repo';
 import { LeadersRepo } from '../../repos/leaders-repo';
-import { DepthChartRepo } from '../../repos/depth-chart-repo';
 import { ScoreboardRepo } from '../../repos/scoreboard-repo';
 import { FbsRepo } from '../../repos/fbs-repo';
 import type {
@@ -132,7 +131,6 @@ const teamsRepo = new TeamsRepo();
 const rankingsRepo = new RankingsRepo();
 const newsRepo = new NewsRepo();
 const leadersRepo = new LeadersRepo();
-const depthRepo = new DepthChartRepo();
 const conferencesRepo = new ConferencesRepo();
 const scoreboardRepo = new ScoreboardRepo();
 const fbsRepo = new FbsRepo();
@@ -827,29 +825,6 @@ export const CATALOG: CatalogEntry[] = [
       } else {
         out.push(result('leaders.season', ctx, 'repo', 'ok', `leaders season=${payload.season}`));
       }
-      return out;
-    },
-  },
-  {
-    id: 'depth.chart',
-    area: 'depth',
-    wrapper: 'DepthChartRepo.getDepthChart',
-    run: async (ctx) => {
-      const fetched = await safe('depth.chart', ctx, 'repo', 'DepthChartRepo.getDepthChart', () =>
-        depthRepo.getDepthChart(ctx.teamId, ctx.season)
-      );
-      if (fetched.error) return [fetched.error];
-      const chart = fetched.value;
-      if (!chart) return [result('depth.chart', ctx, 'repo', currentMayBeEmpty(ctx), 'depth chart empty')];
-      const out = [
-        assertObjectFields('depth.chart', ctx, 'repo', chart, UI_FIELD_INVENTORY.depthChart, 'DepthChart'),
-        assertObjectFields('depth.chart', ctx, 'ui', chart, UI_FIELD_INVENTORY.depthChart, 'UI DepthChart'),
-      ];
-      out.push(
-        chart.available
-          ? result('depth.chart', ctx, 'repo', 'ok', `players=${chart.players.length}`)
-          : result('depth.chart', ctx, 'repo', 'expected_empty', 'depth available=false')
-      );
       return out;
     },
   },

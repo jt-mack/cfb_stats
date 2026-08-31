@@ -44,7 +44,6 @@ export const TEAM_TABS: ReadonlyArray<{
   { slug: "schedule", label: "Schedule" },
   { slug: "leaders", label: "Leaders" },
   { slug: "roster", label: "Roster" },
-  { slug: "depth", label: "Depth" },
   { slug: "coach", label: "Coach" },
   // { slug: "recruiting", label: "Recruiting" },
   { slug: "standings", label: "Standings", wideOnMobile: true },
@@ -56,7 +55,6 @@ export type TeamTabSlug =
   | "schedule"
   | "leaders"
   | "roster"
-  | "depth"
   | "coach"
   | "recruiting"
   | "standings"

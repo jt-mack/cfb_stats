@@ -47,12 +47,6 @@ describe("activeSeasonFeatures", () => {
     assert.equal(getFeatureAvailability("news", 2026, activePreseason).enabled, true);
   });
 
-  it("disables depth chart in preseason and for historical years", () => {
-    assert.equal(getFeatureAvailability("depthChart", 2026, activePreseason).enabled, false);
-    assert.equal(getFeatureAvailability("depthChart", 2025, activeRegular).enabled, false);
-    assert.equal(getFeatureAvailability("depthChart", 2026, activeRegular).enabled, true);
-  });
-
   it("disables roster for historical years only", () => {
     assert.equal(getFeatureAvailability("roster", 2025, activeRegular).enabled, false);
     assert.equal(getFeatureAvailability("roster", 2026, activePreseason).enabled, true);

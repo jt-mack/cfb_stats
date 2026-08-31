@@ -126,7 +126,6 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
   const visibleTabs = TEAM_TABS.filter((tab) => {
     if (tab.slug === "news") return isFeatureEnabled("teamNews", seasonNum, activeSeason);
     if (tab.slug === "roster") return isFeatureEnabled("roster", seasonNum, activeSeason);
-    if (tab.slug === "depth") return isFeatureEnabled("depthChart", seasonNum, activeSeason);
     return true;
   });
 

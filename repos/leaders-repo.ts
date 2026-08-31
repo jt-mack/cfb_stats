@@ -16,6 +16,27 @@ const PREFERRED_CATEGORIES = [
   'interceptions',
 ] as const;
 
+type TeamLeadersV3Payload = {
+  requestedSeason?: { year?: number };
+  leaders?: {
+    categories?: Array<{
+      name?: string;
+      displayName?: string;
+      leaders?: Array<{
+        displayValue?: string;
+        value?: number;
+        athlete?: {
+          id?: string | number;
+          displayName?: string;
+          fullName?: string;
+          jersey?: string | number;
+          position?: { abbreviation?: string };
+        };
+      }>;
+    }>;
+  };
+};
+
 type SeasonLeadersPayload = {
   categories?: Array<{
     name?: string;
@@ -53,6 +74,26 @@ function fetchSeasonTypeLeaders(
     cacheKey: `seasonTypeLeaders:${season}:${seasonType}`,
     cacheTtlMs: options?.cacheTtlMs ?? 30 * 60 * 1000,
     timeoutMs: options?.timeoutMs,
+  });
+}
+
+// The site v3 leaders API supports a team filter, which the SDV core-API
+// season leaders endpoint does not. ESPN clamps unknown seasons to the latest
+// available one and reports it via requestedSeason.year.
+function fetchTeamLeadersV3(
+  teamId: number,
+  season: number,
+  options?: SdvRequestOptions
+): Promise<TeamLeadersV3Payload> {
+  return sdvRequest(async () => {
+    const axios = (await import('axios')).default;
+    const url = `https://site.web.api.espn.com/apis/site/v3/sports/football/college-football/leaders?region=us&lang=en&limit=5&team=${teamId}&season=${season}`;
+    const res = await axios.get(url, { timeout: 10_000 });
+    return res.data as TeamLeadersV3Payload;
+  }, {
+    cacheKey: `teamLeadersV3:${season}:${teamId}`,
+    cacheTtlMs: options?.cacheTtlMs ?? 30 * 60 * 1000,
+    timeoutMs: options?.timeoutMs ?? 10_000,
   });
 }
 
@@ -169,49 +210,40 @@ export class LeadersRepo {
   }
 
   async getTeamLeaders(teamId: number, season: number): Promise<LeaderEntry[]> {
-    const resolved = await this.resolveLeadersSeason(season);
-    let payload;
+    let payload: TeamLeadersV3Payload;
     try {
-      payload = await fetchSeasonTypeLeaders(resolved.season, resolved.seasonType);
-    } catch {
+      payload = await fetchTeamLeadersV3(teamId, season);
+    } catch (err) {
+      console.warn('Team leaders unavailable:', err instanceof Error ? err.message : err);
       return [];
     }
 
-    const teams = await teamIndex.getAllTeams(resolved.season);
-    const schoolById = new Map(teams.map((t) => [t.id, t.school]));
-    const out: LeaderEntry[] = [];
+    const effectiveSeason = payload.requestedSeason?.year ?? season;
+    const categories = payload.leaders?.categories ?? [];
+    const byName = new Map(categories.map((c) => [c.name, c]));
 
-    for (const cat of payload.categories ?? []) {
-      if (!cat.name || !PREFERRED_CATEGORIES.includes(cat.name as (typeof PREFERRED_CATEGORIES)[number])) {
-        continue;
-      }
-      const match = (cat.leaders ?? []).find(
-        (l) => idFromRef(l.team?.['$ref'], 'teams') === teamId
-      );
-      if (!match) continue;
-      const athleteId = idFromRef(match.athlete?.['$ref'], 'athletes');
-      if (!athleteId) continue;
-      let name = `Athlete ${athleteId}`;
-      let position: string | null = null;
-      try {
-        const ath = await fetchAthleteDisplayName(athleteId, resolved.season);
-        name = ath.name;
-        position = ath.position;
-      } catch {
-        // ignore
-      }
+    const teams = await teamIndex.getAllTeams(effectiveSeason);
+    const school = teams.find((t) => t.id === teamId)?.school ?? `Team ${teamId}`;
+
+    const out: LeaderEntry[] = [];
+    for (const catName of PREFERRED_CATEGORIES) {
+      const cat = byName.get(catName);
+      const top = cat?.leaders?.[0];
+      const athlete = top?.athlete;
+      if (!cat || !top || !athlete?.id) continue;
       out.push({
         rank: 1,
-        playerId: String(athleteId),
-        player: name,
+        playerId: String(athlete.id),
+        player: athlete.displayName ?? athlete.fullName ?? `Athlete ${athlete.id}`,
         teamId,
-        team: schoolById.get(teamId) ?? `Team ${teamId}`,
-        position,
-        category: cat.name,
-        categoryDisplay: cat.displayName ?? cat.name,
-        value: Number(match.value ?? 0),
-        displayValue: String(match.displayValue ?? match.value ?? ''),
-        season: resolved.season,
+        team: school,
+        position: athlete.position?.abbreviation ?? null,
+        jersey: athlete.jersey != null ? Number(athlete.jersey) : null,
+        category: catName,
+        categoryDisplay: cat.displayName ?? catName,
+        value: Number(top.value ?? 0),
+        displayValue: String(top.displayValue ?? top.value ?? ''),
+        season: effectiveSeason,
       });
     }
 

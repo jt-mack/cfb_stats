@@ -32,7 +32,6 @@ import {
   getLeaders,
   getTeamLeaders,
   getRankings,
-  getDepthChart,
 } from "@/lib/repos/contentRepo";
 
 export function useDefaultSeason() {
@@ -266,17 +265,5 @@ export function useRankings(season: number | undefined) {
     queryFn: () => getRankings(season),
     enabled: season != null && !Number.isNaN(season),
     staleTime: 15 * 60 * 1000,
-  });
-}
-
-export function useDepthChart(
-  teamId: string | undefined,
-  season: number | undefined,
-  enabled = true
-) {
-  return useQuery({
-    queryKey: ["depthChart", teamId, season],
-    queryFn: () => getDepthChart(teamId!, season!),
-    enabled: enabled && Boolean(teamId) && season != null && !Number.isNaN(season),
   });
 }

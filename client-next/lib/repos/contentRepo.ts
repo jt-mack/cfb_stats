@@ -1,5 +1,5 @@
 import { get } from "../apiClient";
-import type { DepthChart, LeaderEntry, NewsArticle, PollWeek } from "../types";
+import type { LeaderEntry, NewsArticle, PollWeek } from "../types";
 
 export async function getNews(limit = 25): Promise<NewsArticle[]> {
   const data = await get<NewsArticle[]>("/news", { limit });
@@ -39,8 +39,4 @@ export async function getTeamLeaders(teamId: string, season: number): Promise<Le
 
 export async function getRankings(season?: number): Promise<PollWeek> {
   return get("/rankings", season !== undefined ? { season } : undefined);
-}
-
-export async function getDepthChart(teamId: string, season: number): Promise<DepthChart> {
-  return get(`/team/${encodeURIComponent(teamId)}/depthchart`, { season });
 }

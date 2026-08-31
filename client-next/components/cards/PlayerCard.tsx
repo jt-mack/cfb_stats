@@ -15,11 +15,13 @@ type PlayerCardProps = {
   variant: "roster" | "stat-leader";
   imgSize: "full" | "thumbnail"
   team?: Team | null;
+  /** Custom stat content for the stat-leader variant; replaces the single stat_type/stat lines */
+  children?: React.ReactNode;
 };
 
 const PLACEHOLDER_PIC = "/favicon.ico";
 
-export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSize = "thumbnail", team = undefined }: PlayerCardProps) {
+export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSize = "thumbnail", team = undefined, children }: PlayerCardProps) {
   const displayName = `${player.firstName} ${player.lastName}`;
   const imgDimensions = {
     width: imgSize === "full" ? "350" : "96",
@@ -35,8 +37,12 @@ export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSiz
   };
 
 
+  const headshotHref =
+    "headshot" in player ? (player.headshot as { href?: string } | undefined)?.href : undefined;
   const imgSrc =
-    variant === "roster" && player?.id ? (espnImageUrl(player.id)) : ("headshot" in player ? (player.headshot as { href?: string } | undefined)?.href ?? PLACEHOLDER_PIC : PLACEHOLDER_PIC);
+    variant === "roster" && player?.id
+      ? espnImageUrl(player.id)
+      : headshotHref ?? (player?.id ? espnImageUrl(player.id) : PLACEHOLDER_PIC);
   const jersey = player.jersey ?? "—";
   const position = player.position ?? "—";
   const statType = stats.stat_type ?? "Stat";
@@ -50,14 +56,14 @@ export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSiz
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logo} alt="" className="h-6 w-auto object-contain" />
           <span className="text-xs font-medium text-foreground/80">
-            #{jersey} {position !== "—" && `(${position})`}
+            {jersey !== "—" && `#${jersey} `}{position !== "—" && `(${position})`}
           </span>
         </CardHeader>
       )}
       {!logo && (
         <CardHeader className="py-1 px-2">
           <span className="text-xs font-medium text-foreground/80">
-            #{jersey} {position !== "—" && `(${position})`}
+            {jersey !== "—" && `#${jersey} `}{position !== "—" && `(${position})`}
           </span>
         </CardHeader>
       )}
@@ -73,8 +79,12 @@ export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSiz
           </>
           :
           <><p className="font-medium text-sm text-foreground">{displayName}</p>
-            {statType && <p className="text-xs font-semibold text-muted-foreground mt-1">{statType}</p>}
-            {statValue && <p className="text-xs text-muted-foreground">{String(statValue)}</p>}
+            {children ?? (
+              <>
+                {statType && <p className="text-xs font-semibold text-muted-foreground mt-1">{statType}</p>}
+                {statValue && <p className="text-xs text-muted-foreground">{String(statValue)}</p>}
+              </>
+            )}
           </>
         }
       </CardContent>

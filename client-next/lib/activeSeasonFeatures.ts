@@ -8,7 +8,6 @@ import { getDefaultSeason } from "./seasonHelpers";
 export type CurrentSeasonFeature =
   | "news"
   | "teamNews"
-  | "depthChart"
   | "roster"
   | "liveScoreboard";
 
@@ -32,12 +31,6 @@ const FEATURE_RULES: Record<CurrentSeasonFeature, FeatureRule> = {
     disallowPreseason: true,
     unavailableMessage:
       "Team news is only available during the current season once the year is underway.",
-  },
-  depthChart: {
-    requireActiveYear: true,
-    disallowPreseason: true,
-    unavailableMessage:
-      "Depth charts are current-season only and are not published during preseason.",
   },
   roster: {
     requireActiveYear: true,

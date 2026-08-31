@@ -4,14 +4,23 @@ import Link from "next/link";
 import { useTeamPage } from "../TeamPageContext";
 import { useTeamLeaders } from "@/lib/hooks/queries";
 import { PageSpinner, PageError } from "@/components/PageSpinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { PlayerCard } from "@/components/cards/PlayerCard";
+import type { LeaderEntry, RosterPlayer } from "@/lib/types";
+
+function toRosterPlayer(entry: LeaderEntry): RosterPlayer {
+  const [firstName, ...rest] = entry.player.split(" ");
+  return {
+    id: entry.playerId,
+    firstName: firstName ?? entry.player,
+    lastName: rest.join(" "),
+    team: entry.team,
+    height: null,
+    weight: null,
+    jersey: entry.jersey ?? null,
+    year: 0,
+    position: entry.position,
+  };
+}
 
 export default function TeamLeadersPage() {
   const { year, team } = useTeamPage();
@@ -23,34 +32,42 @@ export default function TeamLeadersPage() {
     return <p className="py-8 text-center text-muted-foreground">Team leaders are not available for this season yet.</p>;
   }
 
+  // Group stat lines by player, preserving category order for first appearance
+  const byPlayer = new Map<string, LeaderEntry[]>();
+  for (const entry of leaders) {
+    const existing = byPlayer.get(entry.playerId);
+    if (existing) existing.push(entry);
+    else byPlayer.set(entry.playerId, [entry]);
+  }
+
   return (
-    <div className="overflow-x-auto rounded-md border border-border">
-      <Table>
-        <TableHeader>
-          <TableRow className="border-border">
-            <TableHead className="text-muted-foreground">Category</TableHead>
-            <TableHead className="text-muted-foreground">Player</TableHead>
-            <TableHead className="text-muted-foreground">Pos</TableHead>
-            <TableHead className="text-muted-foreground text-right">Stat</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {leaders.map((l) => (
-            <TableRow key={l.category} className="border-border">
-              <TableCell className="text-foreground/80">{l.categoryDisplay}</TableCell>
-              <TableCell className="text-foreground">{l.player}</TableCell>
-              <TableCell className="text-muted-foreground">{l.position ?? "—"}</TableCell>
-              <TableCell className="text-right text-foreground">{l.displayValue}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div>
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+        {[...byPlayer.values()].map((entries) => (
+          <PlayerCard
+            key={entries[0].playerId}
+            player={toRosterPlayer(entries[0])}
+            variant="stat-leader"
+            imgSize="full"
+            team={team}
+          >
+            <dl className="mt-2 space-y-1">
+              {entries.map((e) => (
+                <div key={e.category} className="flex items-center justify-between gap-2 text-xs">
+                  <dt className="text-muted-foreground">{e.categoryDisplay}</dt>
+                  <dd className="font-semibold text-foreground">{e.displayValue}</dd>
+                </div>
+              ))}
+            </dl>
+          </PlayerCard>
+        ))}
+      </div>
       <p className="text-xs text-muted-foreground p-2">
-        Derived from national season leaders for{" "}
+        Team statistical leaders for the{" "}
         <Link href={`/season/${year}/stats`} className="underline hover:text-foreground">
           {leaders[0]?.season ?? year}
-        </Link>
-        .
+        </Link>{" "}
+        season.
       </p>
     </div>
   );
