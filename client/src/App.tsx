@@ -25,7 +25,7 @@ export const GlobalStateProvider = ({ children }: { children: any }) => {
     const [globalState, setGlobalState] = useState({
         // Your global state here
         conferences: localStorage.getItem('conferences') ? JSON.parse(localStorage.getItem('conferences') ?? '') : [],
-        season: localStorage.getItem('selected_season') ?? currentYear.toString(),
+        season: localStorage.getItem('current_season') ?? currentYear.toString(),
     });
 
     async function getNcaaConferences() {

@@ -19,6 +19,7 @@ const NextMatchup = (props) => {
         if (!id) return;
         getGameDetail(Number(id))
             .then((d) => {
+                console.log('d', d);
                 setDetail(d);
                 setGame(d.game);
                 if (d.game) {
@@ -63,10 +64,10 @@ const NextMatchup = (props) => {
     }, [id]);
 
     const createPropsForImgCard = () => {
-        const venueName = game?.venue ?? gameInfo?.venue?.fullName ?? 'Stadium';
+        const venueName = game?.venue?.name ?? gameInfo?.venue?.fullName ?? 'Stadium';
         return {
             title: name ?? (game ? `${game.awayTeam} @ ${game.homeTeam}` : 'Game'),
-            imgSrc: null,
+            imgSrc: game?.venue?.image ?? null,
             imgName: venueName,
             text: venueName,
             sub_text: ''

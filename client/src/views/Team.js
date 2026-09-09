@@ -1,8 +1,8 @@
-import React, {useState, useEffect} from 'react';
-import {useParams, useSearchParams} from 'react-router-dom';
-import {Row, Col, ListGroup, Spinner, Tabs,Tab} from 'react-bootstrap';
-import {camelCaseToProperCase} from "../helpers/stringHelpers";
-import {useGlobalState} from "../App";
+import React, { useState, useEffect } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { Row, Col, ListGroup, Spinner, Tabs, Tab } from 'react-bootstrap';
+import { camelCaseToProperCase } from "../helpers/stringHelpers";
+import { useGlobalState } from "../App";
 
 import NextEvent from './partials/NextMatchup';
 import TeamCard from '../components/cards/TeamCard';
@@ -29,9 +29,9 @@ const getFavorites = (team_id) => {
 }
 
 function Team() {
-    const {team_id} = useParams();
+    const { team_id } = useParams();
 
-    const {globalState, setGlobalState} = useGlobalState();
+    const { globalState, setGlobalState } = useGlobalState();
 
 
     const [conference, setConference] = useState();
@@ -111,7 +111,7 @@ function Team() {
             .catch((err) => {
                 console.error(err);
                 setLoading(false);
-            });
+            }).finally(() => console.log({ team }));
     }, [globalState.season]);
 
 
@@ -135,9 +135,9 @@ function Team() {
                 setFavorite(isFavorite);
                 return;
             }
-            favorites.push({name: team.abbreviation, id: team.id})
+            favorites.push({ name: team.abbreviation, id: team.id })
             localStorage.setItem("favorites", JSON.stringify(favorites))
-            setFavorite({name: team.abbreviation, id: team.id})
+            setFavorite({ name: team.abbreviation, id: team.id })
         }
     }
 
@@ -183,17 +183,17 @@ function Team() {
     };
 
     const createDataSetsFromTeamRecordStats = (stats, teamInfo) => {
-        const {color, alternateColor, abbreviation} = teamInfo;
+        const { color, alternateColor, abbreviation } = teamInfo;
         var data = stats.map((stat) => stat.value >= 5 && stat.name.toLowerCase().includes("points") && stat)
             .filter(x => x);
 
-        const labels = data.map(({name}) => camelCaseToProperCase(name));
+        const labels = data.map(({ name }) => camelCaseToProperCase(name));
 
         const datasets = [{
             label: abbreviation,
             backgroundColor: "#" + color,
             borderColor: "#" + alternateColor,
-            data: data.map(({value}) => value),
+            data: data.map(({ value }) => value),
         }]
 
         return {
@@ -210,61 +210,61 @@ function Team() {
     return (<>
 
 
-            <Row className={"p-2"}>
-                {loading ?
-                    <Row style={{height: '90vh'}} className='justify-content-center'>
-                        <Spinner animation="grow" style={{color: style.color}} className='mx-auto'/>
-                    </Row>
-                    : <>
-                        <Col xs={12} sm={12}>
+        <Row className={"p-2"}>
+            {loading ?
+                <Row style={{ height: '90vh' }} className='justify-content-center'>
+                    <Spinner animation="grow" style={{ color: style.color }} className='mx-auto' />
+                </Row>
+                : <>
+                    <Col xs={12} sm={12}>
 
-                                    {team && team.school && <Row>
+                        {team && team.school && <Row>
 
-                                            <TeamCard customStyle={style} {...createTeamSummary(team, nextGameForSummary)} favorite={favorite}
-                                                      links={team.links ?? []}
-                                                      makeFavorite={makeFavorite}>
-                                                <Tabs
-                                                    id="team-tabs"
-                                                    activeKey={tab}
-                                                    onSelect={(k) => setTab(k)}
-                                                    className="mb-3 link-light"
-                                                    justify
-                                                >
-                                                    <Tab eventKey="schedule" title="Schedule">
-                                                        <>
-                                                        {schedule && <Schedule schedule={schedule} conference={conference} team={team} style={style}/>}
-                                                        </>
-                                                    </Tab>
-                                                    <Tab eventKey="standings" title="Standings">
-                                                        <>
-                                                        {standings && <StandingsTable standings={createStandingsProps(standings)}
-                                                                                      activeTeam={{id: team_id, style}}/>}
-                                                        </>
-                                                    </Tab>
-                                                    <Tab eventKey="next-matchup" title="Next Game">
-                                                        <>
-                                                        {nextMatchup && nextMatchup[0] ? <NextEvent {...nextMatchup[0]}  /> :
-                                                            <p>This team is coming up on a bye week. Check back next week.</p>}
-                                                        </>
-                                                    </Tab>
-                                                        <Tab eventKey="roster" title="Roster">
-                                                        <Roster id={team.id} slug={team.school} season={globalState.season} />
-                                                    </Tab>
-                                                </Tabs>
+                            <TeamCard customStyle={style} {...createTeamSummary(team, nextGameForSummary)} favorite={favorite}
+                                links={team.links ?? []}
+                                makeFavorite={makeFavorite}>
+                                <Tabs
+                                    id="team-tabs"
+                                    activeKey={tab}
+                                    onSelect={(k) => setTab(k)}
+                                    className="mb-3 link-light"
+                                    justify
+                                >
+                                    <Tab eventKey="schedule" title="Schedule">
+                                        <>
+                                            {schedule && <Schedule schedule={schedule} conference={conference} team={team} style={style} />}
+                                        </>
+                                    </Tab>
+                                    <Tab eventKey="standings" title="Standings">
+                                        <>
+                                            {standings && <StandingsTable standings={createStandingsProps(standings)}
+                                                activeTeam={{ id: team_id, style }} />}
+                                        </>
+                                    </Tab>
+                                    <Tab eventKey="next-matchup" title="Next Game">
+                                        <>
+                                            {nextMatchup && nextMatchup[0] ? <NextEvent {...nextMatchup[0]} /> :
+                                                <p>This team is coming up on a bye week. Check back next week.</p>}
+                                        </>
+                                    </Tab>
+                                    <Tab eventKey="roster" title="Roster">
+                                        <Roster id={team.id} slug={team.school} season={globalState.season} />
+                                    </Tab>
+                                </Tabs>
 
-                                            </TeamCard>
+                            </TeamCard>
 
-                                    </Row>}
+                        </Row>}
 
 
-                        </Col>
-                        <Col xs={12} sm={12}>
+                    </Col>
+                    <Col xs={12} sm={12}>
 
-                        </Col></>
-                }
-            </Row>
+                    </Col></>
+            }
+        </Row>
 
-        </>
+    </>
     );
 
 }

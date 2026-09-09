@@ -14,7 +14,7 @@ function IconForTeam({ game, team }) {
 }
 
 function teamWon(game, team) {
-    return game.homeTeam === team && game.homePoints > game.awayPoints || game.awayTeam === team && game.awayPoints > game.homePoints;
+    return (game.homeTeam === team && game.homePoints > game.awayPoints) || (game.awayTeam === team && game.awayPoints > game.homePoints);
 }
 
 function isNeutralSite(game) {
@@ -29,9 +29,9 @@ function textColor(game, teamName) {
     return isHomeTeam(game, teamName) ? "dark" : "dark";
 }
 
-const spreadDisplay = (game) =>  <div>
-        <p> {game.odds.homeTeam} {game?.odds?.spread > 0 ? `+${game.odds.spread}` : game.odds.spread}</p>
-    </div>
+const spreadDisplay = (game) => <div>
+    <p> {game.odds.homeTeam} {game?.odds?.spread > 0 ? `+${game.odds.spread}` : game.odds.spread}</p>
+</div>
 
 const standingsTable = (props) => <>
     <Row className={"g-3"}>
@@ -46,7 +46,7 @@ const standingsTable = (props) => <>
                     </div>
                     {game?.startDate ? <div className="text-center text-small small"> {new Date(game?.startDate).toLocaleDateString('en-us')} <span> {new Date(game?.startDate).toLocaleTimeString('en-us', { timeStyle: "short" })}</span> </div> : <div>TBD</div>}
 
-                    <div className={'my-auto d-flex gap-1 align-items-center'}><span>{game.venue} </span><IconForTeam game={game}
+                    <div className={'my-auto d-flex gap-1 align-items-center'}><span>{game.venue?.fullName ?? "N/A"} </span><IconForTeam game={game}
                         team={props.team?.nickname} /></div>
 
 
@@ -83,7 +83,7 @@ const standingsTable = (props) => <>
 
 
                         <Col className={'my-auto text-center small'}>
-                            {game?.completed && (teamWon(game, props.team?.nickname) ?
+                            {game?.completed && (teamWon(game, props.team?.nickname ?? props.team?.school) ?
                                 <h1 className={'fw-bold ' + 'text-success'}>W</h1> :
                                 <h1 className={'fw-bold ' + 'text-danger'}>L</h1>)}
                             {!game?.completed && game?.odds?.homeWinProbability && <div className={'d-flex justify-content-center gap-2 text-center align-items-center'}>
