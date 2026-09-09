@@ -163,7 +163,13 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
         >
           <TabsList
             aria-label="Team sections"
-            className="grid w-full h-auto grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-0.5 sm:gap-1 p-1"
+            className={cn(
+              // Single compact row: horizontally scrollable (left-aligned) on
+              // phones; from sm upward the leftover space is distributed
+              // between the tabs (space-between) so they span edge to edge.
+              "flex w-full h-auto justify-start gap-1 overflow-x-auto p-1",
+              "sm:justify-between sm:overflow-visible"
+            )}
             style={{
               backgroundColor: withAlpha(primary, 0.12),
               border: `1px solid ${withAlpha(primary, 0.35)}`,
@@ -176,8 +182,7 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
                   key={tab.slug}
                   value={tab.slug}
                   className={cn(
-                    "text-xs sm:text-sm data-[state=active]:shadow-sm",
-                    tab.wideOnMobile && "col-span-2 sm:col-span-1",
+                    "flex-none whitespace-nowrap px-3 py-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm",
                     !isActive && "text-foreground/80 hover:text-foreground"
                   )}
                   style={

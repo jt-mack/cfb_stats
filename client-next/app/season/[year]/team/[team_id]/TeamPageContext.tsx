@@ -38,7 +38,6 @@ export function useTeamPage() {
 export const TEAM_TABS: ReadonlyArray<{
   slug: TeamTabSlug;
   label: string;
-  wideOnMobile?: boolean;
 }> = [
   { slug: "overview", label: "Overview" },
   { slug: "schedule", label: "Schedule" },
@@ -46,7 +45,7 @@ export const TEAM_TABS: ReadonlyArray<{
   { slug: "roster", label: "Roster" },
   { slug: "coach", label: "Coach" },
   // { slug: "recruiting", label: "Recruiting" },
-  { slug: "standings", label: "Standings", wideOnMobile: true },
+  { slug: "standings", label: "Standings" },
   { slug: "news", label: "News" },
 ];
 
