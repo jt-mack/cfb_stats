@@ -248,6 +248,8 @@ export interface GamePreview {
     category: string;
     player: string;
     displayValue: string;
+    playerId?: string;
+    position?: string | null;
   }[];
   scoringPlays?: {
     id: string;

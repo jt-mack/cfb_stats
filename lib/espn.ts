@@ -189,12 +189,37 @@ export type SeasonLeadersPayload = {
   }>;
 };
 
-/** Season FPI / efficiency rows. */
+/** Season FPI / efficiency rows (full FBS set — ESPN defaults to pageSize 25). */
+export type EspnPowerIndexCollection = {
+  items?: Array<{
+    team?: { $ref?: string };
+    season?: number;
+    lastUpdated?: string;
+    runDateTimeKey?: number | string;
+    predictives?: unknown;
+    efficiencies?: unknown;
+  }>;
+};
+
+export function parsePowerIndexCollection(
+  payload: EspnPowerIndexCollection | SdvParsedPowerIndexRow[] | null | undefined
+): SdvParsedPowerIndexRow[] {
+  if (Array.isArray(payload)) return payload;
+  return (payload?.items ?? []).map((item) => ({
+    team_$ref: item.team?.$ref,
+    season: item.season,
+    last_updated: item.lastUpdated,
+    run_date_time_key: item.runDateTimeKey != null ? String(item.runDateTimeKey) : undefined,
+    predictives:
+      typeof item.predictives === "string" ? item.predictives : JSON.stringify(item.predictives ?? []),
+    efficiencies:
+      typeof item.efficiencies === "string" ? item.efficiencies : JSON.stringify(item.efficiencies ?? []),
+  }));
+}
+
 export function seasonPowerIndex(season: number, options?: SdvRequestOptions) {
-  return callCfb<SdvParsedPowerIndexRow[]>(
-    (cfb) => cfb.espnCfbSeasonPowerindex({ season, parsed: true }),
-    options
-  );
+  const url = `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/${season}/powerindex?limit=300`;
+  return espnGet<EspnPowerIndexCollection>(url, options).then(parsePowerIndexCollection);
 }
 
 /** Week `$ref` list for a season type. */

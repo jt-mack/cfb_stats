@@ -86,7 +86,7 @@ export function mapPowerIndexToAdvancedStats(
 
 export function fetchSeasonPowerIndex(season: number, options?: SdvRequestOptions) {
   return seasonPowerIndex(season, {
-    cacheKey: options?.cacheKey ?? `seasonPowerIndex:${season}`,
+    cacheKey: options?.cacheKey ?? `seasonPowerIndex:all:${season}`,
     cacheTtlMs: options?.cacheTtlMs ?? 60 * 60 * 1000,
     timeoutMs: options?.timeoutMs,
   });

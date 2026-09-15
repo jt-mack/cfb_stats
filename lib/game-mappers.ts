@@ -397,6 +397,8 @@ export type GameLeaderEntry = {
   category: string;
   player: string;
   displayValue: string;
+  playerId: string;
+  position: string | null;
 };
 
 export function mapSummaryGameLeaders(leaders: Record<string, unknown>[]): GameLeaderEntry[] {
@@ -405,6 +407,8 @@ export function mapSummaryGameLeaders(leaders: Record<string, unknown>[]): GameL
     category: s.category,
     player: s.player,
     displayValue: s.stat,
+    playerId: s.playerId,
+    position: s.position || null,
   }));
 }
 
