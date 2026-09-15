@@ -11,6 +11,25 @@ export interface TeamNextEvent {
   date: string;
 }
 
+export interface TeamRecordStats {
+  wins: number;
+  losses: number;
+  ties: number;
+  gamesPlayed: number;
+  pointsFor: number | null;
+  pointsAgainst: number | null;
+  avgPointsFor: number | null;
+  avgPointsAgainst: number | null;
+  streak: number | null;
+  winPercent: number | null;
+  conferenceSummary?: string | null;
+}
+
+export interface TeamCoachName {
+  firstName: string;
+  lastName: string;
+}
+
 export interface Team {
   id: number;
   school: string;
@@ -26,13 +45,15 @@ export interface Team {
   alternateNames?: string[] | null;
   location?: Venue | null;
   links?: { href: string; text: string }[] | null;
-  /** From ESPN team hub — overall W-L summary when present. */
+  /** Overall W-L summary for the requested season. */
   recordSummary?: string | null;
+  recordStats?: TeamRecordStats | null;
   rank?: number | null;
   standingSummary?: string | null;
   /** ESPN conference group id for standings drill-down. */
   conferenceGroupId?: string | null;
   nextEvent?: TeamNextEvent | null;
+  coach?: TeamCoachName | null;
 }
 
 export interface Conference {
@@ -98,6 +119,11 @@ export interface Game {
   awayPoints: number | null;
   homeLineScores: number[] | null;
   awayLineScores: number[] | null;
+  homeLogo?: string | null;
+  awayLogo?: string | null;
+  homeRank?: number | null;
+  awayRank?: number | null;
+  broadcast?: string | null;
   homePostgameWinProbability?: number | null;
   status?: string;
 }

@@ -1,7 +1,8 @@
-import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
-import { POSTSEASON_SEASON_TYPE, REGULAR_SEASON_TYPE } from '../lib/espn-constants';
+import { ATHLETE_URL, espnGet, seasonTypeLeaders } from '../lib/espn';
+import { REGULAR_SEASON_TYPE } from '../lib/espn-constants';
 import { teamIndex } from '../lib/team-index';
 import type { LeaderEntry } from '../lib/types';
+import { idFromRef } from '../utils/parse';
 
 const PREFERRED_CATEGORIES = [
   'passingYards',
@@ -16,148 +17,24 @@ const PREFERRED_CATEGORIES = [
   'interceptions',
 ] as const;
 
-type TeamLeadersV3Payload = {
-  requestedSeason?: { year?: number };
-  leaders?: {
-    categories?: Array<{
-      name?: string;
-      displayName?: string;
-      leaders?: Array<{
-        displayValue?: string;
-        value?: number;
-        athlete?: {
-          id?: string | number;
-          displayName?: string;
-          fullName?: string;
-          jersey?: string | number;
-          position?: { abbreviation?: string };
-        };
-      }>;
-    }>;
-  };
-};
-
-type SeasonLeadersPayload = {
-  categories?: Array<{
-    name?: string;
-    displayName?: string;
-    shortDisplayName?: string;
-    abbreviation?: string;
-    leaders?: Array<{
-      displayValue?: string;
-      value?: number;
-      athlete?: { '$ref'?: string };
-      team?: { '$ref'?: string };
-    }>;
-  }>;
-};
-
-function idFromRef(ref: string | undefined | null, kind: 'athletes' | 'teams' | 'coaches'): number | null {
-  if (!ref) return null;
-  const re = new RegExp(`${kind}/(\\d+)`);
-  const m = ref.match(re);
-  return m ? Number(m[1]) : null;
-}
-
-function fetchSeasonTypeLeaders(
-  season: number,
-  seasonType = REGULAR_SEASON_TYPE,
-  options?: SdvRequestOptions
-): Promise<SeasonLeadersPayload> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbSeasonTypeLeaders({
-      season,
-      season_type: seasonType,
-    })) as SeasonLeadersPayload;
-  }, {
-    cacheKey: `seasonTypeLeaders:${season}:${seasonType}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 30 * 60 * 1000,
-    timeoutMs: options?.timeoutMs,
-  });
-}
-
-// The site v3 leaders API supports a team filter, which the SDV core-API
-// season leaders endpoint does not. ESPN clamps unknown seasons to the latest
-// available one and reports it via requestedSeason.year.
-function fetchTeamLeadersV3(
-  teamId: number,
-  season: number,
-  options?: SdvRequestOptions
-): Promise<TeamLeadersV3Payload> {
-  return sdvRequest(async () => {
-    const axios = (await import('axios')).default;
-    const url = `https://site.web.api.espn.com/apis/site/v3/sports/football/college-football/leaders?region=us&lang=en&limit=5&team=${teamId}&season=${season}`;
-    const res = await axios.get(url, { timeout: 10_000 });
-    return res.data as TeamLeadersV3Payload;
-  }, {
-    cacheKey: `teamLeadersV3:${season}:${teamId}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 30 * 60 * 1000,
-    timeoutMs: options?.timeoutMs ?? 10_000,
-  });
-}
-
-async function fetchAthleteDisplayName(
-  athleteId: number,
-  season: number,
-  options?: SdvRequestOptions
-): Promise<{ id: number; name: string; position: string | null }> {
-  return sdvRequest(async () => {
-    const axios = (await import('axios')).default;
-    const url = `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/${season}/athletes/${athleteId}?lang=en&region=us`;
-    const res = await axios.get(url, { timeout: 8_000 });
-    const data = res.data as {
-      id?: string | number;
-      displayName?: string;
-      fullName?: string;
-      position?: { abbreviation?: string };
-    };
-    return {
-      id: Number(data.id ?? athleteId),
-      name: data.displayName ?? data.fullName ?? `Athlete ${athleteId}`,
-      position: data.position?.abbreviation ?? null,
-    };
-  }, {
-    cacheKey: `athleteName:${season}:${athleteId}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 24 * 60 * 60 * 1000,
-    timeoutMs: options?.timeoutMs ?? 8_000,
-  });
-}
-
 export class LeadersRepo {
-  async resolveLeadersSeason(requested: number): Promise<{ season: number; seasonType: number }> {
-    const candidates = [requested, requested - 1];
-    for (const season of candidates) {
-      for (const seasonType of [POSTSEASON_SEASON_TYPE, REGULAR_SEASON_TYPE]) {
-        try {
-          const payload = await fetchSeasonTypeLeaders(season, seasonType);
-          if (payload.categories?.length) return { season, seasonType };
-        } catch {
-          // try next
-        }
-      }
-    }
-    return { season: requested, seasonType: REGULAR_SEASON_TYPE };
-  }
-
   async getSeasonLeaders(
     season: number,
     category?: string,
     limit = 25
   ): Promise<{ season: number; categories: string[]; leaders: LeaderEntry[] }> {
-    const resolved = await this.resolveLeadersSeason(season);
     let payload;
     try {
-      payload = await fetchSeasonTypeLeaders(resolved.season, resolved.seasonType);
+      payload = await seasonTypeLeaders(
+        { season, seasonType: REGULAR_SEASON_TYPE },
+        { cacheKey: `seasonTypeLeaders:${season}:${REGULAR_SEASON_TYPE}`, cacheTtlMs: 30 * 60 * 1000 }
+      );
     } catch (err) {
       console.warn('Season leaders unavailable:', err instanceof Error ? err.message : err);
-      return { season: resolved.season, categories: [], leaders: [] };
+      return { season, categories: [], leaders: [] };
     }
 
-    const categories = (payload.categories ?? [])
-      .map((c) => c.name)
-      .filter(Boolean) as string[];
-
+    const categories = (payload.categories ?? []).map((c) => c.name).filter(Boolean) as string[];
     const ordered = [
       ...PREFERRED_CATEGORIES.filter((c) => categories.includes(c)),
       ...categories.filter((c) => !PREFERRED_CATEGORIES.includes(c as (typeof PREFERRED_CATEGORIES)[number])),
@@ -166,12 +43,11 @@ export class LeadersRepo {
     const targetCategories = category ? [category] : ordered.slice(0, 1);
     const cat = (payload.categories ?? []).find((c) => c.name === targetCategories[0]);
     if (!cat?.leaders?.length) {
-      return { season: resolved.season, categories: ordered, leaders: [] };
+      return { season, categories: ordered, leaders: [] };
     }
 
-    const teams = await teamIndex.getAllTeams(resolved.season);
+    const teams = await teamIndex.getAllTeams(season);
     const schoolById = new Map(teams.map((t) => [t.id, t.school]));
-
     const slice = cat.leaders.slice(0, limit);
     const leaders: LeaderEntry[] = [];
 
@@ -183,9 +59,18 @@ export class LeadersRepo {
         let name = `Athlete ${athleteId}`;
         let position: string | null = null;
         try {
-          const ath = await fetchAthleteDisplayName(athleteId, resolved.season);
-          name = ath.name;
-          position = ath.position;
+          const ath = await espnGet<{
+            id?: string | number;
+            displayName?: string;
+            fullName?: string;
+            position?: { abbreviation?: string };
+          }>(ATHLETE_URL(season, athleteId), {
+            cacheKey: `athleteName:${season}:${athleteId}`,
+            cacheTtlMs: 24 * 60 * 60 * 1000,
+            timeoutMs: 8_000,
+          });
+          name = ath.displayName ?? ath.fullName ?? name;
+          position = ath.position?.abbreviation ?? null;
         } catch {
           // keep fallback name
         }
@@ -200,53 +85,12 @@ export class LeadersRepo {
           categoryDisplay: cat.displayName ?? cat.name ?? targetCategories[0],
           value: Number(entry.value ?? 0),
           displayValue: String(entry.displayValue ?? entry.value ?? ''),
-          season: resolved.season,
+          season,
         });
       })
     );
 
     leaders.sort((a, b) => a.rank - b.rank);
-    return { season: resolved.season, categories: ordered, leaders };
-  }
-
-  async getTeamLeaders(teamId: number, season: number): Promise<LeaderEntry[]> {
-    let payload: TeamLeadersV3Payload;
-    try {
-      payload = await fetchTeamLeadersV3(teamId, season);
-    } catch (err) {
-      console.warn('Team leaders unavailable:', err instanceof Error ? err.message : err);
-      return [];
-    }
-
-    const effectiveSeason = payload.requestedSeason?.year ?? season;
-    const categories = payload.leaders?.categories ?? [];
-    const byName = new Map(categories.map((c) => [c.name, c]));
-
-    const teams = await teamIndex.getAllTeams(effectiveSeason);
-    const school = teams.find((t) => t.id === teamId)?.school ?? `Team ${teamId}`;
-
-    const out: LeaderEntry[] = [];
-    for (const catName of PREFERRED_CATEGORIES) {
-      const cat = byName.get(catName);
-      const top = cat?.leaders?.[0];
-      const athlete = top?.athlete;
-      if (!cat || !top || !athlete?.id) continue;
-      out.push({
-        rank: 1,
-        playerId: String(athlete.id),
-        player: athlete.displayName ?? athlete.fullName ?? `Athlete ${athlete.id}`,
-        teamId,
-        team: school,
-        position: athlete.position?.abbreviation ?? null,
-        jersey: athlete.jersey != null ? Number(athlete.jersey) : null,
-        category: catName,
-        categoryDisplay: cat.displayName ?? catName,
-        value: Number(top.value ?? 0),
-        displayValue: String(top.displayValue ?? top.value ?? ''),
-        season: effectiveSeason,
-      });
-    }
-
-    return out;
+    return { season, categories: ordered, leaders };
   }
 }

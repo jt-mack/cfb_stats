@@ -18,12 +18,38 @@ import {
 import { GameCard } from "@/components/cards/GameCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import Link from "next/link";
+import type { GamePreview, RosterPlayer } from "@/lib/types";
 
 type GamePageClientProps = {
   year: string;
   gameId: string;
 };
+
+type GameLeader = NonNullable<GamePreview["gameLeaders"]>[number];
+
+function toRosterPlayer(leader: GameLeader): RosterPlayer {
+  const [firstName, ...rest] = leader.player.split(" ");
+  return {
+    id: leader.playerId ?? "",
+    firstName: firstName ?? leader.player,
+    lastName: rest.join(" "),
+    team: leader.team,
+    height: null,
+    weight: null,
+    jersey: null,
+    year: 0,
+    position: leader.position ?? null,
+  };
+}
 
 export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   const [playByPlayRequested, setPlayByPlayRequested] = useState(false);
@@ -97,13 +123,22 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   const gameLeadersByTeam = useMemo(() => {
     const entries = preview?.gameLeaders ?? [];
     if (!entries.length) return [];
-    const grouped = new Map<string, typeof entries>();
+    const grouped = new Map<string, GameLeader[]>();
     for (const e of entries) {
       const list = grouped.get(e.team) ?? [];
       list.push(e);
       grouped.set(e.team, list);
     }
-    return [...grouped.entries()];
+    return [...grouped.entries()].map(([team, leaders]) => {
+      const byPlayer = new Map<string, GameLeader[]>();
+      for (const leader of leaders) {
+        const key = leader.playerId || leader.player;
+        const list = byPlayer.get(key) ?? [];
+        list.push(leader);
+        byPlayer.set(key, list);
+      }
+      return [team, [...byPlayer.values()]] as const;
+    });
   }, [preview?.gameLeaders]);
 
   if (!validId) {
@@ -157,33 +192,42 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
   const weather = preview.weather;
   const scoringPlays = preview.scoringPlays ?? [];
 
+  const teamCellClass =
+    "sticky left-0 z-10 max-w-[7.5rem] truncate bg-background px-2 text-foreground group-hover:bg-muted sm:max-w-none";
+  const scoreCellClass = "px-1.5 text-center text-foreground/80 sm:px-2";
+
   return (
-    <div className="space-y-6 min-w-0">
-      <GameCard game={game} year={Number(year)} />
+    <div className="min-w-0 space-y-4 sm:space-y-6">
+      <GameCard
+        game={game}
+        year={Number(year)}
+        mediaOutlets={mediaOutlets}
+        weather={weather}
+      />
 
       {!preview.completed && preview.statsYear && !Number.isNaN(seasonNum) && preview.statsYear < seasonNum && (
-        <p className="text-sm text-amber-200/90 text-center">
+        <p className="text-center text-xs text-amber-200/90 sm:text-sm">
           Preview uses {preview.statsYear} stats — {seasonNum} data not yet available.
         </p>
       )}
 
       {(game.completed || game.homePoints != null) && (
-        <div className="rounded-md border border-border overflow-x-auto">
-          <Table>
+        <div className="rounded-md border border-border">
+          <Table className="text-xs sm:text-sm">
             <TableHeader>
               <TableRow className="border-border">
-                <TableHead className="text-muted-foreground">Team</TableHead>
+                <TableHead className={`${teamCellClass} text-muted-foreground`}>Team</TableHead>
                 {game.awayLineScores?.map((_, i) => (
-                  <TableHead key={i} className="text-center text-muted-foreground text-xs">
+                  <TableHead key={i} className="px-1.5 text-center text-xs text-muted-foreground sm:px-2">
                     {i >= 4 ? "OT" : i + 1}
                   </TableHead>
                 ))}
-                <TableHead className="text-end text-muted-foreground">F</TableHead>
+                <TableHead className="px-1.5 text-end text-muted-foreground sm:px-2">F</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="border-border">
-                <TableCell className="text-foreground">
+              <TableRow className="group border-border">
+                <TableCell className={teamCellClass}>
                   {game.awayTeamId != null ? (
                     <Link
                       href={`/season/${year}/team/${game.awayTeamId}/overview`}
@@ -196,14 +240,14 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
                   )}
                 </TableCell>
                 {game.awayLineScores?.map((s, i) => (
-                  <TableCell key={i} className="text-center text-foreground/80">{s}</TableCell>
+                  <TableCell key={i} className={scoreCellClass}>{s}</TableCell>
                 ))}
-                <TableCell className="text-end font-semibold text-foreground">
+                <TableCell className="px-1.5 text-end font-semibold text-foreground sm:px-2">
                   {game.awayPoints ?? "—"}
                 </TableCell>
               </TableRow>
-              <TableRow className="border-border">
-                <TableCell className="text-foreground">
+              <TableRow className="group border-border">
+                <TableCell className={teamCellClass}>
                   {game.homeTeamId != null ? (
                     <Link
                       href={`/season/${year}/team/${game.homeTeamId}/overview`}
@@ -216,60 +260,75 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
                   )}
                 </TableCell>
                 {game.homeLineScores?.map((s, i) => (
-                  <TableCell key={i} className="text-center text-foreground/80">{s}</TableCell>
+                  <TableCell key={i} className={scoreCellClass}>{s}</TableCell>
                 ))}
-                <TableCell className="text-end font-semibold text-foreground">
+                <TableCell className="px-1.5 text-end font-semibold text-foreground sm:px-2">
                   {game.homePoints ?? "—"}
                 </TableCell>
               </TableRow>
             </TableBody>
           </Table>
+          {scoringPlays.length > 0 && (
+            <div className="flex justify-center border-t border-border px-3 py-2 sm:px-4">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto">
+                    View Scoring Plays
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>Scoring Plays</DialogTitle>
+                    <DialogDescription>
+                      {game.awayTeam} at {game.homeTeam}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <ul className="max-h-[60vh] space-y-2 overflow-y-auto text-sm text-muted-foreground">
+                    {scoringPlays.map((sp) => (
+                      <li key={sp.id} className="rounded-md border border-border bg-muted/40 px-3 py-2 space-y-1">
+                        <div className="flex items-start justify-between gap-2 text-xs">
+                          <span className="text-foreground/80">
+                            Q{sp.period}
+                            {sp.clock ? ` ${sp.clock}` : ""}
+                            {sp.scoringType ? ` · ${sp.scoringType}` : ""}
+                          </span>
+                          {sp.awayScore != null && sp.homeScore != null && (
+                            <span className="shrink-0 font-medium text-foreground/70">
+                              {sp.awayScore}–{sp.homeScore}
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-medium text-foreground">{sp.team}</p>
+                        <p className="leading-snug">{sp.text}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
         </div>
       )}
 
-      {scoringPlays.length > 0 && (
-        <div className="rounded-md border border-border bg-muted/50 px-4 py-3 space-y-2">
-          <h5 className="text-sm font-medium text-foreground/80 text-center">Scoring Summary</h5>
-          <ul className="space-y-1 max-h-48 overflow-y-auto text-xs text-muted-foreground">
-            {scoringPlays.map((sp) => (
-              <li key={sp.id} className="flex flex-wrap gap-x-2 justify-center">
-                <span className="text-foreground/80">
-                  Q{sp.period}
-                  {sp.clock ? ` ${sp.clock}` : ""}
-                </span>
-                <span className="text-foreground">{sp.team}</span>
-                {sp.scoringType ? <span>{sp.scoringType}</span> : null}
-                <span>{sp.text}</span>
-                {sp.awayScore != null && sp.homeScore != null && (
-                  <span className="text-foreground/70">
-                    ({sp.awayScore}-{sp.homeScore})
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 sm:gap-4">
         {seasonStatsChart && seasonStatsChart.datasets.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground text-center">
+          <div className="min-w-0 space-y-1">
+            <p className="text-center text-xs text-muted-foreground">
               {preview?.statsLabel ?? "ESPN efficiency (season-to-date)"}
               {preview?.statsYear ? ` · ${preview.statsYear}` : ""}
             </p>
             <BarChart labels={seasonStatsChart.labels} datasets={seasonStatsChart.datasets} />
           </div>
         )}
-        {(homeWinProb != null || spread != null) && (
+        {(homeWinProb != null || spread != null) ? (
           <div className="flex flex-col items-center justify-center gap-2 text-foreground">
             {homeWinProb != null && (
               <>
-                <p className="text-xs text-muted-foreground">{game.homeTeam} win probability</p>
+                <p className="px-2 text-center text-xs text-muted-foreground">{game.homeTeam} win probability</p>
                 <WinPercentage
                   logoUrl=""
                   percentage={(Number(homeWinProb) * 100).toFixed(2)}
-                  size={200}
+                  size={160}
                   color={homeColor}
                 />
               </>
@@ -283,102 +342,49 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
               <p className="text-sm text-muted-foreground">O/U {overUnder}</p>
             )}
           </div>
+        ) : boxScoreDatasets.length > 0 && boxScoreLabels.length > 0 && (
+          <div className="min-w-0 space-y-2">
+            <h3 className="text-center text-sm font-medium text-foreground/80">Team Stats</h3>
+            <BarChart labels={boxScoreLabels} datasets={boxScoreDatasets} />
+          </div>
         )}
       </div>
 
-      {mediaOutlets.length > 0 && (
-        <p className="text-sm text-foreground/80 text-center">
-          Watch on: {mediaOutlets.join(", ")}
-        </p>
-      )}
-
-      {weather && !weather.gameIndoors && (
-        <div className="rounded-md border border-border bg-muted/50 px-4 py-3 text-sm text-foreground/80 text-center">
-          {weather.condition?.description ?? "Weather forecast"}
-          {weather.temperature != null && ` · ${weather.temperature}°F`}
-          {weather.windSpeed != null && ` · Wind ${weather.windSpeed} mph`}
-          {weather.precipitation != null && weather.precipitation > 0 && ` · Precip ${weather.precipitation}%`}
-        </div>
-      )}
-
-      {preview.matchup && (
-        <div className="rounded-md border border-border bg-muted/50 px-4 py-3">
-          <h5 className="text-sm font-medium text-foreground/80 mb-2 text-center">Series History</h5>
-          <p className="text-center text-foreground">
-            {preview.matchup.team1} {preview.matchup.team1Wins} – {preview.matchup.team2Wins} {preview.matchup.team2}
-            {preview.matchup.ties > 0 ? ` (${preview.matchup.ties} ties)` : ""}
-          </p>
-          {preview.matchup.sinceSeason != null && (
-            <p className="text-center text-xs text-muted-foreground mt-1">
-              Series since {preview.matchup.sinceSeason} (not all-time)
-            </p>
-          )}
-          {preview.matchup.games?.length > 0 && (
-            <ul className="mt-2 text-xs text-muted-foreground space-y-1 max-h-32 overflow-y-auto">
-              {[...preview.matchup.games].slice(0, 10).map((g, i) => (
-                <li key={i} className="text-center">
-                  {g.season}: {g.awayTeam} {g.awayScore ?? "—"} @ {g.homeTeam} {g.homeScore ?? "—"}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {gameLeadersByTeam.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {gameLeadersByTeam.map(([team, leaders]) => (
-            <div key={team} className="rounded-md border border-border bg-card px-3 py-3 space-y-2">
-              <h3 className="text-sm font-medium text-foreground/80 text-center">{team} Top Performers</h3>
-              <ul className="space-y-1.5 text-sm">
-                {leaders.map((l, i) => (
-                  <li key={`${l.category}-${i}`} className="flex flex-col sm:flex-row sm:justify-between gap-0.5">
-                    <span className="text-muted-foreground">{l.category}</span>
-                    <span className="text-foreground">
-                      {l.player}
-                      <span className="text-muted-foreground ml-2">{l.displayValue}</span>
-                    </span>
-                  </li>
+      {game.completed && gameLeadersByTeam.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {gameLeadersByTeam.map(([team, players]) => (
+            <div key={team} className="min-w-0 space-y-2 rounded-md border border-border bg-card px-3 py-3">
+              <h3 className="text-center text-sm font-medium text-foreground/80">{team} Top Performers</h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {players.map((entries) => (
+                  <PlayerCard
+                    key={entries[0].playerId || entries[0].player}
+                    player={toRosterPlayer(entries[0])}
+                    variant="stat-leader"
+                    imgSize="thumbnail"
+                  >
+                    <dl className="mt-2 space-y-1">
+                      {entries.map((e) => (
+                        <div key={e.category} className="flex flex-col gap-0.5 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                          <dt className="text-muted-foreground">{e.category}</dt>
+                          <dd className="font-semibold break-words text-foreground">{e.displayValue}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </PlayerCard>
                 ))}
-              </ul>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {boxScoreDatasets.length > 0 && boxScoreLabels.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-foreground/80 text-center">Team Stats</h3>
-          <BarChart labels={boxScoreLabels} datasets={boxScoreDatasets} />
-        </div>
-      )}
-
-      {detail?.playerStats?.[0]?.teams?.map((teamGroup, idx) => (
-        <div key={idx} className="space-y-2">
-          <h3 className="text-sm font-medium text-foreground/80">{teamGroup.team} Box Score Leaders</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            {(teamGroup.categories ?? []).flatMap((cat) =>
-              (cat.athletes ?? []).slice(0, 1).map((a) => (
-                <div
-                  key={`${cat.name}-${a.id}`}
-                  className="rounded border border-border bg-card px-3 py-2"
-                >
-                  <span className="text-muted-foreground">{cat.name}: </span>
-                  <span className="text-foreground">{a.name}</span>
-                  <span className="text-muted-foreground ml-2">{a.stat}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      ))}
-
-      {leadersByTeam.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {!game.completed && leadersByTeam.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 sm:gap-6">
           {leadersByTeam.map((item, idx) => (
-            <div key={idx}>
-              <h5 className="text-center text-foreground mb-3">{item.team} Key Players</h5>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div key={idx} className="min-w-0">
+              <h5 className="mb-3 text-center text-foreground">{item.team} Key Players</h5>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {item.statLeaders?.map((playerStats, i) => (
                   <PlayerCard
                     key={i}
@@ -401,6 +407,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
               type="button"
               variant="outline"
               size="sm"
+              className="w-full sm:w-auto"
               onClick={() => setPlayByPlayRequested(true)}
             >
               View play by play
@@ -417,13 +424,13 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
               {drives.length > 0 && (
                 <>
                   <h3 className="text-sm font-medium text-foreground/80">Drives</h3>
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                  <div className="max-h-64 space-y-1 overflow-y-auto">
                     {drives.map((d) => (
                       <div
                         key={d.id}
-                        className="rounded border border-border bg-card px-3 py-2 text-xs text-foreground/80 flex flex-wrap items-center gap-2"
+                        className="flex flex-wrap items-center gap-2 rounded border border-border bg-card px-3 py-2 text-xs text-foreground/80"
                       >
-                        <span>
+                        <span className="min-w-0 break-words">
                           <span className="text-foreground">{d.offense}</span> vs {d.defense} —{" "}
                           {d.yards} yds, {d.plays} plays
                         </span>
@@ -438,25 +445,54 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => setShowPlays((v) => !v)}
                 >
                   {showPlays ? "Hide" : "Show"} play-by-play ({plays.length})
                 </Button>
               )}
               {showPlays && (
-                <div className="space-y-1 max-h-96 overflow-y-auto mt-2">
+                <div className="mt-2 max-h-96 space-y-1 overflow-y-auto">
                   {plays.slice(0, 100).map((p) => (
                     <div
                       key={p.id}
-                      className="text-xs text-muted-foreground border-b border-border py-1"
+                      className="border-b border-border py-1.5 text-xs leading-snug text-muted-foreground"
                     >
-                      Q{p.period} {p.clock?.minutes}:
-                      {String(p.clock?.seconds ?? 0).padStart(2, "0")} — {p.playText}
+                      <span className="text-foreground/80">
+                        Q{p.period} {p.clock?.minutes}:
+                        {String(p.clock?.seconds ?? 0).padStart(2, "0")}
+                      </span>
+                      {" — "}
+                      {p.playText}
                     </div>
                   ))}
                 </div>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {preview.matchup && (
+        <div className="rounded-md border border-border bg-muted/50 px-3 py-3 sm:px-4">
+          <h5 className="mb-2 text-center text-sm font-medium text-foreground/80">Series History</h5>
+          <p className="text-center text-sm text-foreground sm:text-base">
+            {preview.matchup.team1} {preview.matchup.team1Wins} – {preview.matchup.team2Wins} {preview.matchup.team2}
+            {preview.matchup.ties > 0 ? ` (${preview.matchup.ties} ties)` : ""}
+          </p>
+          {preview.matchup.sinceSeason != null && (
+            <p className="mt-1 text-center text-xs text-muted-foreground">
+              Series since {preview.matchup.sinceSeason} (not all-time)
+            </p>
+          )}
+          {preview.matchup.games?.length > 0 && (
+            <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto text-xs text-muted-foreground">
+              {[...preview.matchup.games].slice(0, 10).map((g, i) => (
+                <li key={i} className="text-center break-words">
+                  {g.season}: {g.awayTeam} {g.awayScore ?? "—"} @ {g.homeTeam} {g.homeScore ?? "—"}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}

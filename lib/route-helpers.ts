@@ -45,7 +45,9 @@ export async function cachedJson<T>(
     routeCache.set(key, data, ttl);
     res.json(data);
   } catch (error) {
-    console.error(`Route error [${key}]:`, error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Request failed' });
+    const status = (error as { status?: number }).status;
+    const code = status && status >= 400 && status < 600 ? status : 500;
+    if (code >= 500) console.error(`Route error [${key}]:`, error);
+    res.status(code).json({ error: error instanceof Error ? error.message : 'Request failed' });
   }
 }

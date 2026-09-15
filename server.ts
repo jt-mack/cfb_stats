@@ -4,7 +4,7 @@ dotenv.config();
 
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import './lib/espn-client'; // preload SportsDataverse client module
+import './lib/espn-client'; // preload SportsDataverse client (UA patch + module cache)
 import cfbRoutes from './routes';
 
 const port = process.env.SERVER_PORT || 5000;

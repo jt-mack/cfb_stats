@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,10 @@ type TeamCardProps = {
   id: number;
   title: string;
   record: string;
+  rank?: number | null;
+  coachName?: string | null;
+  standingSummary?: string | null;
+  standingHref?: string | null;
   logo: string;
   conferenceLogo?: string | null;
   favorite?: { id: number; name: string } | false;
@@ -30,6 +35,10 @@ type TeamCardProps = {
 export function TeamCard({
   title,
   record,
+  rank,
+  coachName,
+  standingSummary,
+  standingHref,
   logo,
   conferenceLogo,
   favorite,
@@ -65,27 +74,47 @@ export function TeamCard({
               unoptimized
             />
           ) : null}
-          <h2
-            className="text-base sm:text-lg font-semibold text-center sm:text-left truncate min-w-0"
-            style={{ color: onPrimary }}
-          >
-            {title}{" "}
-            <span className="font-normal opacity-80">({record})</span>
-            {ratingChip && (
-              <span
-                className="ml-2 text-xs font-normal px-2 py-0.5 rounded"
-                style={{
-                  backgroundColor: withAlpha(secondary, 0.85),
-                  color: contrastText(secondary),
-                }}
-              >
-                {ratingChip}
-              </span>
+          <div className="min-w-0 text-center sm:text-left">
+            <h2
+              className="text-base sm:text-lg font-semibold truncate"
+              style={{ color: onPrimary }}
+            >
+              {rank != null && rank > 0 ? (
+                <span className="font-normal opacity-80 mr-1.5">#{rank}</span>
+              ) : null}
+              {title}{" "}
+              <span className="font-normal opacity-80">({record})</span>
+              {ratingChip && (
+                <span
+                  className="ml-2 text-xs font-normal px-2 py-0.5 rounded align-middle"
+                  style={{
+                    backgroundColor: withAlpha(secondary, 0.85),
+                    color: contrastText(secondary),
+                  }}
+                >
+                  {ratingChip}
+                </span>
+              )}
+              {atsChip && (
+                <span className="ml-1 text-xs font-normal opacity-75">{atsChip}</span>
+              )}
+            </h2>
+            {(coachName || standingSummary) && (
+              <p className="mt-0.5 text-xs sm:text-sm opacity-90 truncate">
+                {coachName}
+                {coachName && standingSummary ? (
+                  <span className="opacity-60"> · </span>
+                ) : null}
+                {standingSummary && standingHref ? (
+                  <Link href={standingHref} className="underline-offset-2 hover:underline">
+                    {standingSummary}
+                  </Link>
+                ) : (
+                  standingSummary
+                )}
+              </p>
             )}
-            {atsChip && (
-              <span className="ml-1 text-xs font-normal opacity-75">{atsChip}</span>
-            )}
-          </h2>
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 order-2">
           <DropdownMenu>

@@ -50,7 +50,7 @@ export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSiz
   const logo = team?.logos?.[0] ?? (player.team as { logo?: string } | undefined)?.logo ?? undefined;
 
   return (
-    <Card className="overflow-hidden gap-0 py-0">
+    <Card className="overflow-hidden gap-0 py-0 min-w-0">
       {logo && (
         <CardHeader className="py-1 px-2 flex flex-row items-center justify-between">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -68,17 +68,17 @@ export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSiz
         </CardHeader>
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imgSrc} alt="" className={cn(imgSize === "full" ? "h-48 w-full object-cover" : "h-8 w-auto object-contain")} />
-      <CardContent className="p-2 text-center">
+      <img src={imgSrc} alt="" className={cn(imgSize === "full" ? "h-40 sm:h-48 w-full object-cover" : "h-8 w-auto object-contain mx-auto")} />
+      <CardContent className="p-2 text-center min-w-0">
         {variant === "roster" ?
           <>
-            <p className="font-medium text-sm text-foreground">{displayName}</p>
+            <p className="font-medium text-sm text-foreground break-words">{displayName}</p>
             {player?.year != null && <p className="text-xs font-semibold text-muted-foreground mt-1">{formatPlayerYear(player?.year)}</p>}
             {player?.weight != null && <p className="text-xs font-semibold text-muted-foreground mt-1">{formatWeightPounds(player?.weight)}</p>}
             {player?.height != null && <p className="text-xs text-muted-foreground">{formatHeightInches(player?.height)}</p>}
           </>
           :
-          <><p className="font-medium text-sm text-foreground">{displayName}</p>
+          <><p className="font-medium text-sm text-foreground break-words leading-tight">{displayName}</p>
             {children ?? (
               <>
                 {statType && <p className="text-xs font-semibold text-muted-foreground mt-1">{statType}</p>}

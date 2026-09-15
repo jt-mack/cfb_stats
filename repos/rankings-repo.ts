@@ -1,6 +1,13 @@
-import { getCfb, getDefaultSeason, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
+import {
+  espnGet,
+  rankings as fetchLiveRankings,
+  seasonWeekRankings,
+  type SdvRequestOptions,
+} from '../lib/espn';
+import { getDefaultSeason } from '../lib/espn-client';
 import { POSTSEASON_SEASON_TYPE, REGULAR_SEASON_TYPE } from '../lib/espn-constants';
 import type { Poll, PollRank, PollWeek } from '../lib/types';
+import { idFromRef } from '../utils/parse';
 
 export function normalizeRankingsPayload(
   raw: Record<string, unknown> | null | undefined
@@ -34,8 +41,7 @@ export function parsePollRankMap(raw: Record<string, unknown>): Map<number, numb
     const team = entry.team as { id?: string | number; '$ref'?: string } | undefined;
     let id = Number(team?.id);
     if (!id && team?.['$ref']) {
-      const m = String(team['$ref']).match(/teams\/(\d+)/);
-      id = m ? Number(m[1]) : 0;
+      id = idFromRef(String(team['$ref']), 'teams') ?? 0;
     }
     const rank = Number(entry.current ?? entry.rank);
     if (id && rank > 0 && rank <= 99) rankMap.set(id, rank);
@@ -47,8 +53,7 @@ function mapRankEntry(entry: Record<string, unknown>): PollRank | null {
   const team = entry.team as { id?: string | number; location?: string; displayName?: string; '$ref'?: string } | undefined;
   let id = Number(team?.id);
   if (!id && team?.['$ref']) {
-    const m = String(team['$ref']).match(/teams\/(\d+)/);
-    id = m ? Number(m[1]) : 0;
+    id = idFromRef(String(team['$ref']), 'teams') ?? 0;
   }
   const rank = Number(entry.current ?? entry.rank);
   if (!id || !rank) return null;
@@ -110,15 +115,7 @@ export function parsePollWeek(raw: Record<string, unknown>): PollWeek {
   };
 }
 
-function idFromRef(ref: string | undefined | null, kind: 'athletes' | 'teams' | 'coaches'): number | null {
-  if (!ref) return null;
-  const re = new RegExp(`${kind}/(\\d+)`);
-  const m = ref.match(re);
-  return m ? Number(m[1]) : null;
-}
-
 async function fetchHistoricalRankingsFromCore(season: number): Promise<Record<string, unknown>> {
-  const cfb = await getCfb();
   const candidates: Array<{ seasonType: number; week: number }> = [];
   for (let week = 5; week >= 1; week -= 1) candidates.push({ seasonType: POSTSEASON_SEASON_TYPE, week });
   for (let week = 16; week >= 1; week -= 1) candidates.push({ seasonType: REGULAR_SEASON_TYPE, week });
@@ -128,11 +125,11 @@ async function fetchHistoricalRankingsFromCore(season: number): Promise<Record<s
 
   for (const candidate of candidates) {
     try {
-      const list = (await cfb.espnCfbSeasonWeekRankings({
+      const list = await seasonWeekRankings({
         season,
-        season_type: candidate.seasonType,
+        seasonType: candidate.seasonType,
         week: candidate.week,
-      })) as { items?: Array<{ '$ref'?: string }>; count?: number };
+      });
       if (list?.items?.length) {
         items = list.items;
         used = candidate;
@@ -145,20 +142,18 @@ async function fetchHistoricalRankingsFromCore(season: number): Promise<Record<s
 
   if (!items.length) return { rankings: [] };
 
-  const axios = (await import('axios')).default;
   const rankings: Record<string, unknown>[] = [];
 
   for (const item of items) {
-    const ref = item['$ref']?.replace('sports.core.api.espn.pvt', 'sports.core.api.espn.com');
+    const ref = item['$ref'];
     if (!ref) continue;
     try {
-      const res = await axios.get(ref, { timeout: 8_000 });
-      const detail = res.data as {
+      const detail = await espnGet<{
         name?: string;
         shortName?: string;
         type?: string | number;
         ranks?: Array<Record<string, unknown>>;
-      };
+      }>(ref, { cacheKey: `rankingDetail:${ref}`, cacheTtlMs: 24 * 60 * 60 * 1000, timeoutMs: 8_000 });
 
       const typeRaw = detail.type;
       const name = String(detail.name ?? '');
@@ -207,18 +202,16 @@ export function fetchParsedRankings(
   const season = year ?? defaultSeason;
   const useLivePolls = season >= defaultSeason;
 
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
+  return (async () => {
     if (useLivePolls) {
-      return (await cfb.espnCfbRankings({})) as Record<string, unknown>;
+      return fetchLiveRankings({
+        cacheKey: options?.cacheKey ?? `espnRankings:${season}`,
+        cacheTtlMs: options?.cacheTtlMs ?? 15 * 60 * 1000,
+        timeoutMs: options?.timeoutMs,
+      });
     }
-
     return fetchHistoricalRankingsFromCore(season);
-  }, {
-    cacheKey: options?.cacheKey ?? `espnRankings:${season}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 15 * 60 * 1000,
-    timeoutMs: options?.timeoutMs,
-  });
+  })();
 }
 
 export class RankingsRepo {

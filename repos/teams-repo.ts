@@ -1,22 +1,84 @@
-import { findCoachAssociation } from '../lib/coaches-db';
-import { FBS_GROUP } from '../lib/espn-constants';
-import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
+import {
+  espnGet,
+  summary as fetchSummary,
+  team as fetchTeam,
+  seasonTeam as fetchSeasonTeam,
+  teamNews as fetchTeamNews,
+  teamRoster as fetchTeamRoster,
+  teamSchedule as fetchTeamSchedule,
+  TEAM_LEADERS_V3,
+  TEAM_SEASON_COACHES_URL,
+} from '../lib/espn';
+import { getDefaultSeason } from '../lib/espn-client';
+import { eventsToGames, mapPicksToOdds, summaryToPicks } from '../lib/game-mappers';
+import { mapNewsRow } from './news-repo';
+import { RatingsRepo } from './ratings-repo';
+import {
+  conferenceNameFromGroupId,
+  mapEspnNextEvent,
+  mapEspnTeamToTeam,
+  mapRanksToRank,
+  mapRecordItems,
+  synthesizeStandingSummary,
+  teamIndex,
+} from '../lib/team-index';
+import type { SdvParsedRosterRow, SdvSeasonCoachEntry, SdvTeamRecord } from '../lib/espn-types';
 import type {
-  SdvParsedCoachRow,
-  SdvParsedRosterRow,
-  SdvParsedStandingsRow,
-  SdvSeasonCoachEntry,
-  SdvTeamResponse,
-} from '../lib/espn-types';
-import { mapEspnTeamToTeam } from '../lib/team-index';
-import { teamIndex } from '../lib/team-index';
-import type { Coach, CoachSeason, RosterPlayer, Team } from '../lib/types';
+  BettingGame,
+  Coach,
+  Game,
+  GameMedia,
+  GameWeather,
+  GameWithOdds,
+  LeaderEntry,
+  NewsArticle,
+  PregameWinProbability,
+  RosterPlayer,
+  Team,
+} from '../lib/types';
+import { num, parseWlRecord } from '../utils/parse';
 
-function num(value: unknown): number | null {
-  if (value == null || value === '') return null;
-  const n = Number(value);
-  return Number.isNaN(n) ? null : n;
-}
+export type GameEnrichment = {
+  gameId: number;
+  odds: PregameWinProbability | null;
+  media: GameMedia[];
+  weather: GameWeather | null;
+  lines: BettingGame | null;
+};
+
+const PREFERRED_LEADER_CATEGORIES = [
+  'passingYards',
+  'passingTouchdowns',
+  'rushingYards',
+  'rushingTouchdowns',
+  'receivingYards',
+  'receivingTouchdowns',
+  'receptions',
+  'totalTackles',
+  'sacks',
+  'interceptions',
+] as const;
+
+type TeamLeadersV3Payload = {
+  requestedSeason?: { year?: number };
+  leaders?: {
+    categories?: Array<{
+      name?: string;
+      displayName?: string;
+      leaders?: Array<{
+        displayValue?: string;
+        value?: number;
+        athlete?: {
+          id?: string | number;
+          displayName?: string;
+          fullName?: string;
+          jersey?: string | number;
+          position?: { abbreviation?: string };
+        };
+      }>;
+    }>;
+  };
+};
 
 function parseHeight(raw: unknown): number | null {
   if (typeof raw === 'number') return raw;
@@ -24,14 +86,6 @@ function parseHeight(raw: unknown): number | null {
   const match = raw.match(/(\d+)-(\d+)/);
   if (!match) return null;
   return parseInt(match[1], 10) * 12 + parseInt(match[2], 10);
-}
-
-function parseCoachRecord(teamRecord?: string): { games: number; wins: number; losses: number; ties: number } {
-  const parts = (teamRecord ?? '').split('-').map((p) => parseInt(p, 10));
-  const wins = Number.isFinite(parts[0]) ? parts[0] : 0;
-  const losses = Number.isFinite(parts[1]) ? parts[1] : 0;
-  const ties = Number.isFinite(parts[2]) ? parts[2] : 0;
-  return { wins, losses, ties, games: wins + losses + ties };
 }
 
 export function mapParsedRosterRows(rows: SdvParsedRosterRow[], school: string, year: number): RosterPlayer[] {
@@ -55,7 +109,7 @@ export function mapSeasonCoachEntry(
   teamRecord?: string
 ): Coach[] {
   if (!entry.firstName && !entry.lastName) return [];
-  const record = parseCoachRecord(teamRecord);
+  const record = parseWlRecord(teamRecord);
   return [
     {
       firstName: entry.firstName ?? '',
@@ -75,190 +129,103 @@ export function mapSeasonCoachEntry(
   ];
 }
 
-/** Extract numeric id from an ESPN Core `$ref` URL. */
-export function idFromRef(ref: string | undefined | null, kind: 'athletes' | 'teams' | 'coaches'): number | null {
-  if (!ref) return null;
-  const re = new RegExp(`${kind}/(\\d+)`);
-  const m = ref.match(re);
-  return m ? Number(m[1]) : null;
-}
-
-function fetchTeam(teamId: number, options?: SdvRequestOptions): Promise<SdvTeamResponse> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbTeam({ team_id: teamId })) as SdvTeamResponse;
-  }, {
-    cacheKey: `team:${teamId}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 60 * 60 * 1000,
-    timeoutMs: options?.timeoutMs,
-  });
-}
-
-function fetchParsedTeamRoster(teamId: number, options?: SdvRequestOptions): Promise<SdvParsedRosterRow[]> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbTeamRoster({ team_id: teamId, parsed: true })) as SdvParsedRosterRow[];
-  }, {
-    cacheKey: `teamRoster:${teamId}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 60 * 60 * 1000,
-    timeoutMs: options?.timeoutMs,
-  });
-}
-
-function fetchParsedStandings(
-  season: number,
-  group = FBS_GROUP,
-  options?: SdvRequestOptions
-): Promise<SdvParsedStandingsRow[]> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbStandings({ season, group, parsed: true })) as SdvParsedStandingsRow[];
-  }, options);
-}
-
-function fetchSeasonCoachRefs(season: number, options?: SdvRequestOptions) {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return cfb.espnCfbSeasonCoaches({ season, limit: 500 });
-  }, options);
-}
-
-function fetchCoach(coachId: number | string, options?: SdvRequestOptions): Promise<SdvParsedCoachRow[]> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbCoach({ coach_id: coachId, parsed: true })) as SdvParsedCoachRow[];
-  }, options);
-}
-
-function fetchCoachRecord(
-  coachId: number | string,
-  recordType = 0,
-  options?: SdvRequestOptions
-): Promise<Record<string, unknown>[]> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbCoachRecord({
-      coach_id: coachId,
-      record_type: recordType,
-      parsed: true,
-    })) as Record<string, unknown>[];
-  }, options);
-}
-
-type SeasonCoachList = { items?: Array<{ '$ref'?: string }> };
-
-const teamCoachBySeason = new Map<number, Map<number, SdvSeasonCoachEntry>>();
-const teamCoachEntryCache = new Map<string, SdvSeasonCoachEntry | null>();
-
-/** Resolve head coach via team endpoint first, then season coach refs. Cached per team/season. */
-async function fetchTeamCoachEntry(
-  teamId: number,
-  season: number,
-  options?: SdvRequestOptions
-): Promise<SdvSeasonCoachEntry | null> {
-  const resultCacheKey = `teamCoachEntry:${teamId}:${season}`;
-  if (teamCoachEntryCache.has(resultCacheKey)) {
-    return teamCoachEntryCache.get(resultCacheKey) ?? null;
-  }
-
-  const indexHit = teamCoachBySeason.get(season)?.get(teamId);
-  if (indexHit) {
-    teamCoachEntryCache.set(resultCacheKey, indexHit);
-    return indexHit;
-  }
-
-  // Prefer coach fragment on the team response (avoids walking 130+ coach refs).
-  try {
-    const teamResponse = await fetchTeam(teamId, options);
-    const coach = teamResponse.team?.coach;
-    if (coach?.firstName || coach?.lastName) {
-      const entry: SdvSeasonCoachEntry = {
-        firstName: coach.firstName,
-        lastName: coach.lastName,
-        team: { '$ref': `http://sports.core.api.espn.com/v2/sports/football/leagues/college-football/teams/${teamId}` },
-      };
-      let index = teamCoachBySeason.get(season);
-      if (!index) {
-        index = new Map();
-        teamCoachBySeason.set(season, index);
-      }
-      index.set(teamId, entry);
-      teamCoachEntryCache.set(resultCacheKey, entry);
-      return entry;
-    }
-  } catch (err) {
-    console.warn(`Team coach lookup failed for ${teamId}:`, err instanceof Error ? err.message : err);
-  }
-
-  const list = (await fetchSeasonCoachRefs(season, {
-    ...options,
-    cacheKey: `seasonCoaches:${season}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 24 * 60 * 60 * 1000,
-  })) as SeasonCoachList;
-
-  let index = teamCoachBySeason.get(season);
-  if (!index) {
-    index = new Map();
-    teamCoachBySeason.set(season, index);
-  }
-
-  for (const item of list.items ?? []) {
-    const ref = item['$ref'];
-    const coachId = ref?.match(/coaches\/(\d+)/)?.[1];
-    if (!ref || !coachId) continue;
-
-    const entry = await sdvRequest(
-      async () => {
-        const axios = (await import('axios')).default;
-        const res = await axios.get(ref, { timeout: 8_000 });
-        return res.data as SdvSeasonCoachEntry;
-      },
-      { cacheKey: `seasonCoachEntry:${season}:${coachId}`, cacheTtlMs: 24 * 60 * 60 * 1000, timeoutMs: 8_000 }
-    );
-    const teamRef = entry.team?.['$ref'] ?? '';
-    const matchedTeamId = teamRef.match(/teams\/(\d+)/)?.[1];
-    if (!matchedTeamId) continue;
-
-    const matchedId = Number(matchedTeamId);
-    index.set(matchedId, entry);
-    teamCoachEntryCache.set(`teamCoachEntry:${matchedId}:${season}`, entry);
-
-    if (matchedId === teamId) {
-      return entry;
-    }
-  }
-
-  teamCoachEntryCache.set(resultCacheKey, null);
-  return null;
-}
-
-function parseJsonRefs(value: unknown): Array<{ '$ref'?: string }> {
-  if (Array.isArray(value)) return value as Array<{ '$ref'?: string }>;
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
 export class TeamsRepo {
+  private ratingsRepo = new RatingsRepo();
+
   async getTeamInfo(teamIdOrSchool: string, year: number): Promise<Team | null> {
-    const team = await teamIndex.resolveTeam(teamIdOrSchool, year);
-    if (!team) return null;
+    const resolved = await teamIndex.resolveTeam(teamIdOrSchool, year);
+    if (!resolved) return null;
 
     try {
-      const response = await fetchTeam(team.id);
-      if (response.team) {
-        return mapEspnTeamToTeam(response.team, team.conference);
+      const seasonDoc = await fetchSeasonTeam(
+        { teamId: resolved.id, season: year },
+        { cacheKey: `seasonTeam:${year}:${resolved.id}`, cacheTtlMs: 60 * 60 * 1000 }
+      );
+
+      const recordRef = seasonDoc.record && '$ref' in seasonDoc.record ? seasonDoc.record.$ref : undefined;
+      const ranksRef = seasonDoc.ranks?.$ref;
+      const isActiveSeason = year === getDefaultSeason();
+
+      const [recordResult, ranksResult, coachResult, hubResult] = await Promise.allSettled([
+        recordRef
+          ? espnGet<SdvTeamRecord>(recordRef, {
+              cacheKey: `teamRecord:${recordRef}`,
+              cacheTtlMs: 15 * 60 * 1000,
+            })
+          : Promise.resolve(seasonDoc.record as SdvTeamRecord | undefined),
+        ranksRef
+          ? espnGet<unknown>(ranksRef, {
+              cacheKey: `teamRanks:${ranksRef}`,
+              cacheTtlMs: 15 * 60 * 1000,
+            })
+          : Promise.resolve(null),
+        this.resolveCoachName(resolved.id, year, seasonDoc.coaches?.$ref),
+        isActiveSeason
+          ? fetchTeam(resolved.id, {
+              cacheKey: `teamHub:${resolved.id}`,
+              cacheTtlMs: 15 * 60 * 1000,
+            })
+          : Promise.resolve(null),
+      ]);
+
+      const recordPayload = recordResult.status === 'fulfilled' ? recordResult.value : undefined;
+      const ranksPayload = ranksResult.status === 'fulfilled' ? ranksResult.value : null;
+      const coach = coachResult.status === 'fulfilled' ? coachResult.value : null;
+      const hubTeam = hubResult.status === 'fulfilled' ? hubResult.value?.team : undefined;
+
+      const team = mapEspnTeamToTeam(seasonDoc, resolved.conference);
+      const fromGroup = conferenceNameFromGroupId(team.conferenceGroupId);
+      if (fromGroup) team.conference = fromGroup;
+
+      const mappedRecord = mapRecordItems(recordPayload?.items);
+      if (mappedRecord.recordSummary) team.recordSummary = mappedRecord.recordSummary;
+      team.recordStats = mappedRecord.recordStats;
+
+      const rankFromCore = mapRanksToRank(ranksPayload);
+      const hubRank = hubTeam?.rank != null && hubTeam.rank > 0 ? hubTeam.rank : null;
+      team.rank = rankFromCore ?? hubRank ?? team.rank ?? null;
+
+      team.standingSummary =
+        hubTeam?.standingSummary ??
+        synthesizeStandingSummary(team.rank, team.conference);
+
+      if (hubTeam?.nextEvent) {
+        team.nextEvent = mapEspnNextEvent(hubTeam.nextEvent);
       }
+
+      if (coach) team.coach = coach;
+
+      return team;
     } catch (err) {
       console.warn(`getTeamInfo upstream failed for ${teamIdOrSchool}:`, err instanceof Error ? err.message : err);
     }
-    return team;
+    return resolved;
+  }
+
+  private async resolveCoachName(
+    teamId: number,
+    year: number,
+    coachesRef?: string
+  ): Promise<{ firstName: string; lastName: string } | null> {
+    const listUrl = coachesRef ?? TEAM_SEASON_COACHES_URL(year, teamId);
+    try {
+      const list = await espnGet<{ items?: Array<{ '$ref'?: string }> }>(listUrl, {
+        cacheKey: `teamSeasonCoaches:${year}:${teamId}`,
+        cacheTtlMs: 24 * 60 * 60 * 1000,
+        timeoutMs: 8_000,
+      });
+      const ref = list.items?.[0]?.['$ref'];
+      if (!ref) return null;
+      const entry = await espnGet<SdvSeasonCoachEntry>(ref, {
+        cacheKey: `seasonCoach:${ref}`,
+        cacheTtlMs: 24 * 60 * 60 * 1000,
+        timeoutMs: 8_000,
+      });
+      if (!entry.firstName && !entry.lastName) return null;
+      return { firstName: entry.firstName ?? '', lastName: entry.lastName ?? '' };
+    } catch {
+      return null;
+    }
   }
 
   async getRoster(team: string, year: number): Promise<RosterPlayer[]> {
@@ -266,7 +233,10 @@ export class TeamsRepo {
     const school = (await teamIndex.resolveSchoolName(team, year)) ?? team;
     if (!teamId) return [];
 
-    const rows = await fetchParsedTeamRoster(teamId);
+    const rows = await fetchTeamRoster(teamId, {
+      cacheKey: `teamRoster:${teamId}`,
+      cacheTtlMs: 60 * 60 * 1000,
+    });
     return mapParsedRosterRows(rows, school, year);
   }
 
@@ -276,144 +246,229 @@ export class TeamsRepo {
     if (!teamId) return [];
 
     try {
-      const teamResponse = await fetchTeam(teamId).catch(() => null);
-      let recordSummary = teamResponse?.team?.record?.items?.[0]?.summary;
-      if (!recordSummary) {
-        const rows = await fetchParsedStandings(year, FBS_GROUP, {
-          cacheKey: `coachStandings:${year}`,
-          cacheTtlMs: 60 * 60 * 1000,
-        }).catch(() => [] as SdvParsedStandingsRow[]);
-        recordSummary = rows.find((r) => Number(r.team_id) === teamId)?.overall;
+      const seasonDoc = await fetchSeasonTeam(
+        { teamId, season: year },
+        { cacheKey: `seasonTeam:${year}:${teamId}`, cacheTtlMs: 60 * 60 * 1000 }
+      );
+      const coach = await this.resolveCoachName(teamId, year, seasonDoc.coaches?.$ref);
+      if (!coach) return [];
+
+      const recordRef = seasonDoc.record && '$ref' in seasonDoc.record ? seasonDoc.record.$ref : undefined;
+      let recordSummary: string | undefined;
+      if (recordRef) {
+        const recordPayload = await espnGet<SdvTeamRecord>(recordRef, {
+          cacheKey: `teamRecord:${recordRef}`,
+          cacheTtlMs: 15 * 60 * 1000,
+        });
+        recordSummary = mapRecordItems(recordPayload.items).recordSummary ?? undefined;
       }
 
-      // Prefer durable lowdb association (season row, else current coach fallback).
-      const assoc = await findCoachAssociation(teamId, year).catch((err) => {
-        console.warn(`coaches-db lookup failed for ${teamId}:`, err instanceof Error ? err.message : err);
-        return null;
-      });
-      if (assoc?.row) {
-        const coachEntry: SdvSeasonCoachEntry = {
-          id: assoc.row.coachId,
-          firstName: assoc.row.firstName,
-          lastName: assoc.row.lastName,
-          team: {
-            '$ref': `http://sports.core.api.espn.com/v2/sports/football/leagues/college-football/teams/${teamId}`,
-          },
-        };
-        const base = mapSeasonCoachEntry(coachEntry, school, year, recordSummary);
-        if (!base[0]) return [];
-        return [await this.enrichCoachTenure(base[0], assoc.row.coachId, teamId, school, year)];
-      }
-
-      // Live ESPN fallback when lowdb has no association yet.
-      const coachEntry = await fetchTeamCoachEntry(teamId, year);
-      if (!coachEntry) return [];
-
-      const base = mapSeasonCoachEntry(coachEntry, school, year, recordSummary);
-      if (!base[0] || !coachEntry.id) return base;
-
-      return [await this.enrichCoachTenure(base[0], String(coachEntry.id), teamId, school, year)];
+      return mapSeasonCoachEntry(
+        { firstName: coach.firstName, lastName: coach.lastName },
+        school,
+        year,
+        recordSummary
+      );
     } catch (err) {
       console.warn(`getCoaches failed for ${team}:`, err instanceof Error ? err.message : err);
+      return [];
     }
-    return [];
   }
 
-  /** Resolve coach_seasons refs and keep only seasons for this school. */
-  private async enrichCoachTenure(
-    coach: Coach,
-    coachId: string,
-    teamId: number,
-    school: string,
-    year: number
-  ): Promise<Coach> {
-    try {
-      const [rows, careerRows] = await Promise.all([
-        fetchCoach(coachId),
-        fetchCoachRecord(coachId, 0).catch(() => []),
-      ]);
-      const row = rows[0];
-      const careerSummary =
-        (careerRows[0]?.summary as string | undefined) ??
-        (careerRows[0]?.display_value as string | undefined) ??
-        undefined;
+  async getSchedule(team: string, year: number): Promise<Game[]> {
+    const meta = await teamIndex.resolveTeamMeta(team, year);
+    if (!meta) return [];
 
-      const seasonRefs = parseJsonRefs(row?.coach_seasons);
-      const schoolSeasons: CoachSeason[] = [];
-      let partialTenure = false;
+    const raw = await fetchTeamSchedule(
+      { teamId: meta.id, season: year },
+      { cacheKey: `schedule:${meta.id}:${year}`, cacheTtlMs: 15 * 60 * 1000 }
+    );
+    return eventsToGames(raw, year);
+  }
 
-      // Cap ref walks to keep response time reasonable.
-      for (const item of seasonRefs.slice(0, 20)) {
-        const ref = item['$ref'];
-        if (!ref) continue;
-        const seasonMatch = ref.match(/seasons\/(\d+)\//);
-        const seasonYear = seasonMatch ? Number(seasonMatch[1]) : NaN;
-        if (!Number.isFinite(seasonYear)) continue;
+  async getScheduleWithOdds(team: string, year: number): Promise<GameWithOdds[]> {
+    const games = await this.getSchedule(team, year);
+    return games.map((g) => ({ ...g, odds: undefined }));
+  }
+
+  async getScheduleEnrichment(team: string, year: number): Promise<GameEnrichment[]> {
+    const games = await this.getSchedule(team, year);
+    if (!games.length) return [];
+
+    const upcoming = games.filter((g) => !g.completed).slice(0, 6);
+    const upcomingResults = await Promise.all(
+      upcoming.map(async (game) => {
         try {
-          const axios = (await import('axios')).default;
-          const url = ref.replace('sports.core.api.espn.pvt', 'sports.core.api.espn.com');
-          const res = await axios.get(url, { timeout: 8_000 });
-          const data = res.data as {
-            team?: { '$ref'?: string };
-            records?: Array<{ record?: { '$ref'?: string } }>;
-          };
-          const seasonTeamId = idFromRef(data.team?.['$ref'], 'teams');
-          if (seasonTeamId !== teamId) continue;
-
-          let wins = 0;
-          let losses = 0;
-          let ties = 0;
-          let games = 0;
-          const recordRef = data.records?.[0]?.record?.['$ref'];
-          if (recordRef) {
-            try {
-              const recRes = await axios.get(
-                recordRef.replace('sports.core.api.espn.pvt', 'sports.core.api.espn.com'),
-                { timeout: 8_000 }
-              );
-              const summary = String(recRes.data?.summary ?? recRes.data?.displayValue ?? '');
-              const m = summary.match(/(\d+)-(\d+)(?:-(\d+))?/);
-              if (m) {
-                wins = Number(m[1]);
-                losses = Number(m[2]);
-                ties = Number(m[3] ?? 0);
-                games = wins + losses + ties;
-              }
-            } catch {
-              partialTenure = true;
-            }
-          } else {
-            partialTenure = true;
-          }
-
-          schoolSeasons.push({ school, year: seasonYear, games, wins, losses, ties });
+          const raw = await fetchSummary(game.id, {
+            cacheKey: `gameSummaryRaw:${game.id}`,
+            cacheTtlMs: 60 * 60 * 1000,
+          });
+          const { odds, lines, media, weather } = mapPicksToOdds(summaryToPicks(raw, game.id), game);
+          return { gameId: game.id, odds, media, weather, lines } satisfies GameEnrichment;
         } catch {
-          partialTenure = true;
+          return {
+            gameId: game.id,
+            odds: null,
+            media: [],
+            weather: null,
+            lines: null,
+          } satisfies GameEnrichment;
         }
+      })
+    );
+
+    const completedResults = games
+      .filter((g) => g.completed)
+      .map(
+        (game) =>
+          ({
+            gameId: game.id,
+            odds: null,
+            media: [],
+            weather: null,
+            lines: null,
+          }) satisfies GameEnrichment
+      );
+
+    return [...upcomingResults, ...completedResults];
+  }
+
+  async getTeamNews(teamIdOrSchool: string, year: number, limit = 15): Promise<NewsArticle[]> {
+    const teamId = await teamIndex.resolveTeamId(teamIdOrSchool, year);
+    if (!teamId) return [];
+    const rows = await fetchTeamNews(teamId, limit, {
+      cacheKey: `teamNews:${teamId}:${limit}`,
+      cacheTtlMs: 10 * 60 * 1000,
+    });
+    return (Array.isArray(rows) ? rows : []).map(mapNewsRow).filter((a) => a.id && a.headline);
+  }
+
+  async getTeamLeaders(teamIdOrSchool: string, year: number): Promise<LeaderEntry[]> {
+    const teamId = await teamIndex.resolveTeamId(teamIdOrSchool, year);
+    if (!teamId) return [];
+
+    let payload: TeamLeadersV3Payload;
+    try {
+      payload = await espnGet<TeamLeadersV3Payload>(TEAM_LEADERS_V3(teamId, year), {
+        cacheKey: `teamLeadersV3:${year}:${teamId}`,
+        cacheTtlMs: 30 * 60 * 1000,
+        timeoutMs: 10_000,
+      });
+    } catch (err) {
+      console.warn('Team leaders unavailable:', err instanceof Error ? err.message : err);
+      return [];
+    }
+
+    const effectiveSeason = payload.requestedSeason?.year ?? year;
+    const categories = payload.leaders?.categories ?? [];
+    const byName = new Map(categories.map((c) => [c.name, c]));
+    const school = (await teamIndex.resolveSchoolName(String(teamId), effectiveSeason)) ?? `Team ${teamId}`;
+
+    const out: LeaderEntry[] = [];
+    for (const catName of PREFERRED_LEADER_CATEGORIES) {
+      const cat = byName.get(catName);
+      const top = cat?.leaders?.[0];
+      const athlete = top?.athlete;
+      if (!cat || !top || !athlete?.id) continue;
+      out.push({
+        rank: 1,
+        playerId: String(athlete.id),
+        player: athlete.displayName ?? athlete.fullName ?? `Athlete ${athlete.id}`,
+        teamId,
+        team: school,
+        position: athlete.position?.abbreviation ?? null,
+        jersey: athlete.jersey != null ? Number(athlete.jersey) : null,
+        category: catName,
+        categoryDisplay: cat.displayName ?? catName,
+        value: Number(top.value ?? 0),
+        displayValue: String(top.displayValue ?? top.value ?? ''),
+        season: effectiveSeason,
+      });
+    }
+    return out;
+  }
+
+  async getTeamRatings(year: number, team: string) {
+    const [fpi, efficiency, ats] = await Promise.all([
+      this.ratingsRepo.getFpiRatings(year),
+      this.ratingsRepo.getEfficiencyRatings(year),
+      this.getTeamAts(year, team),
+    ]);
+
+    return {
+      fpi: fpi.find((r) => r.team === team) ?? null,
+      efficiency: efficiency.find((r) => r.team === team) ?? null,
+      ats: ats[0] ?? null,
+    };
+  }
+
+  async getRecruiting(team: string, year: number) {
+    const school = (await teamIndex.resolveSchoolName(team, year)) ?? team;
+    const [recruiting, talent] = await Promise.all([
+      this.ratingsRepo.getRecruitingRankings(year),
+      this.ratingsRepo.getTalent(year),
+    ]);
+    return {
+      recruiting: recruiting.filter((r) => r.team === school),
+      talent: talent.find((t) => t.team === school) ?? null,
+    };
+  }
+
+  private async getTeamAts(year: number, team: string) {
+    const meta = await teamIndex.resolveTeamMeta(team, year);
+    if (!meta) return [];
+
+    try {
+      const schedule = await fetchTeamSchedule(
+        { teamId: meta.id, season: year },
+        { cacheKey: `schedule:${meta.id}:${year}`, cacheTtlMs: 15 * 60 * 1000 }
+      );
+      const events = schedule.events ?? [];
+      let covers = 0;
+      let pushes = 0;
+      let total = 0;
+
+      for (const event of events) {
+        const comp = (event.competitions as Record<string, unknown>[] | undefined)?.[0];
+        const odds = (comp?.odds as { spread?: number }[] | undefined)?.[0];
+        if (odds?.spread == null) continue;
+
+        const competitors = (comp?.competitors as Record<string, unknown>[] | undefined) ?? [];
+        const home = competitors.find((c) => c.homeAway === 'home');
+        const away = competitors.find((c) => c.homeAway === 'away');
+        const homeTeamInfo = home?.team as { location?: string; displayName?: string } | undefined;
+        const awayTeamInfo = away?.team as { location?: string; displayName?: string } | undefined;
+        const homeName = homeTeamInfo?.location ?? homeTeamInfo?.displayName ?? '';
+        const awayName = awayTeamInfo?.location ?? awayTeamInfo?.displayName ?? '';
+        const isHome = homeName.toLowerCase() === meta.school.toLowerCase();
+        const isAway = awayName.toLowerCase() === meta.school.toLowerCase();
+        if (!isHome && !isAway) continue;
+
+        const homeScore = Number((home?.score as { value?: number })?.value ?? home?.score);
+        const awayScore = Number((away?.score as { value?: number })?.value ?? away?.score);
+        if (Number.isNaN(homeScore) || Number.isNaN(awayScore)) continue;
+
+        total++;
+        const margin = homeScore - awayScore;
+        const spread = odds.spread;
+        const adjusted = isHome ? margin + spread : -(margin + spread);
+
+        if (adjusted > 0) covers++;
+        else if (adjusted === 0) pushes++;
       }
 
-      const seasons =
-        schoolSeasons.length > 0
-          ? schoolSeasons.sort((a, b) => b.year - a.year)
-          : coach.seasons;
-
-      const schoolWins = seasons.reduce((s, x) => s + x.wins, 0);
-      const schoolLosses = seasons.reduce((s, x) => s + x.losses, 0);
-      const schoolTies = seasons.reduce((s, x) => s + x.ties, 0);
-      const firstSeason = seasons.length ? Math.min(...seasons.map((s) => s.year)) : year;
-
-      return {
-        ...coach,
-        hireDate: coach.hireDate || String(firstSeason),
-        seasons,
-        seasonsAtSchool: seasons.length,
-        schoolRecordSummary: `${schoolWins}-${schoolLosses}${schoolTies ? `-${schoolTies}` : ''}`,
-        careerRecordSummary: careerSummary,
-        partialTenure: partialTenure || schoolSeasons.length === 0,
-      };
+      const decisions = total - pushes;
+      return [{
+        team,
+        year,
+        games: total,
+        covers,
+        pushes,
+        coverPct: decisions ? covers / decisions : 0,
+      }];
     } catch (err) {
-      console.warn(`Coach tenure enrich failed for ${coachId}:`, err instanceof Error ? err.message : err);
-      return { ...coach, partialTenure: true };
+      console.warn(`getTeamAts failed for ${team} ${year}:`, err instanceof Error ? err.message : err);
+      return [];
     }
   }
 }

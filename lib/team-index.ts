@@ -1,15 +1,11 @@
-import { FBS_GROUP, MAIN_CONFERENCE_IDS } from './espn-constants';
-import { getCfb, sdvRequest } from './espn-client';
-import type { SdvEspnTeam, SdvParsedStandingsRow } from './espn-types';
-import type { Team, Venue } from './types';
+import { standings as fetchStandings } from './espn';
+import { FBS_CONFERENCES } from './espn-constants';
+import type { SdvEspnTeam, SdvRecordItem, SdvRecordStat } from './espn-types';
+import { extractStandingsRows } from './standings';
+import type { Team, TeamRecordStats, Venue } from './types';
+import { idFromRef, num } from '../utils/parse';
 
-function num(value: unknown): number | null {
-  if (value == null || value === '') return null;
-  const n = Number(value);
-  return Number.isNaN(n) ? null : n;
-}
-
-/** ESPN CDN logo URL from team id — used when parsed standings omit team_logo. */
+/** ESPN CDN logo URL from team id — used when standings omit logos. */
 export function espnTeamLogoUrl(teamId: number | string): string {
   return `https://a.espncdn.com/i/teamlogos/ncaa/500/${teamId}.png`;
 }
@@ -30,13 +26,29 @@ function resolveEspnGroups(groups: SdvEspnTeam['groups']): {
   id?: string;
   name?: string;
   shortName?: string;
+  '$ref'?: string;
 } | undefined {
   if (!groups) return undefined;
   if (Array.isArray(groups)) return groups[0];
   return groups;
 }
 
-function mapEspnNextEvent(nextEvent: SdvEspnTeam['nextEvent']): Team['nextEvent'] {
+export function conferenceGroupIdFromTeam(espn: SdvEspnTeam): string | null {
+  const group = resolveEspnGroups(espn.groups);
+  if (group?.id != null && group.id !== '') return String(group.id);
+  const fromRef = idFromRef(group?.['$ref'], 'groups');
+  return fromRef != null ? String(fromRef) : null;
+}
+
+export function conferenceNameFromGroupId(groupId: string | null | undefined): string | null {
+  if (groupId == null || groupId === '') return null;
+  const meta = FBS_CONFERENCES.find((c) => String(c.id) === String(groupId)) as
+    | { abbreviation: string; shortName: string }
+    | undefined;
+  return meta?.abbreviation ?? meta?.shortName ?? null;
+}
+
+export function mapEspnNextEvent(nextEvent: SdvEspnTeam['nextEvent']): Team['nextEvent'] {
   const first = nextEvent?.[0];
   if (!first) return null;
   const id = num(first.id);
@@ -48,90 +60,136 @@ function mapEspnNextEvent(nextEvent: SdvEspnTeam['nextEvent']): Team['nextEvent'
   };
 }
 
+function recordStat(stats: SdvRecordStat[] | undefined, name: string): number | null {
+  const row = stats?.find((s) => s.name === name);
+  return row?.value != null ? num(row.value) : null;
+}
+
+export function mapRecordItems(items: SdvRecordItem[] | undefined | null): {
+  recordSummary: string | null;
+  recordStats: TeamRecordStats | null;
+} {
+  if (!items?.length) return { recordSummary: null, recordStats: null };
+  const total = items.find((i) => i.type === 'total') ?? items[0];
+  const vsconf = items.find((i) => i.type === 'vsconf');
+  const stats = total.stats ?? [];
+  const wins = recordStat(stats, 'wins') ?? 0;
+  const losses = recordStat(stats, 'losses') ?? 0;
+  const ties = recordStat(stats, 'ties') ?? 0;
+  const gamesPlayed = recordStat(stats, 'gamesPlayed') ?? wins + losses + ties;
+  const recordStats: TeamRecordStats = {
+    wins,
+    losses,
+    ties,
+    gamesPlayed,
+    pointsFor: recordStat(stats, 'pointsFor'),
+    pointsAgainst: recordStat(stats, 'pointsAgainst'),
+    avgPointsFor: recordStat(stats, 'avgPointsFor'),
+    avgPointsAgainst: recordStat(stats, 'avgPointsAgainst'),
+    streak: recordStat(stats, 'streak'),
+    winPercent: recordStat(stats, 'winPercent'),
+    conferenceSummary: vsconf?.summary ?? vsconf?.displayValue ?? null,
+  };
+  return {
+    recordSummary: total.summary ?? total.displayValue ?? null,
+    recordStats,
+  };
+}
+
+/** Core ranks list, a single rank doc, or `$ref`-only items (ignored). */
+export function mapRanksToRank(raw: unknown): number | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  const direct = num(obj.current ?? obj.rank);
+  if (direct != null && direct > 0) return direct;
+
+  const items = obj.items;
+  if (!Array.isArray(items)) return null;
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const occurrence = row.occurrence as { number?: unknown } | undefined;
+    const value = num(row.current ?? row.rank ?? occurrence?.number);
+    if (value != null && value > 0) return value;
+  }
+  return null;
+}
+
+export function synthesizeStandingSummary(
+  rank: number | null | undefined,
+  conference: string | null | undefined
+): string | null {
+  if (rank != null && rank > 0 && conference) return `#${rank} · ${conference}`;
+  if (conference) return conference;
+  return null;
+}
+
 export function mapEspnTeamToTeam(espn: SdvEspnTeam, conference?: string | null): Team {
   const id = num(espn.id) ?? 0;
   const school = espn.location ?? espn.nickname ?? espn.displayName ?? 'Unknown';
   const venue = (espn as { venue?: Record<string, unknown> }).venue;
   const address = venue?.address as { city?: string; state?: string } | undefined;
+  const city = String(address?.city ?? (venue as { city?: string } | undefined)?.city ?? '');
+  const state = String(address?.state ?? (venue as { state?: string } | undefined)?.state ?? '');
   const location: Venue | null = venue
     ? {
       id: num(venue.id),
       name: String(venue.fullName ?? venue.displayName ?? ''),
-      address: {
-        city: String(address?.city ?? (venue as { city?: string }).city ?? ''),
-        state: String(address?.state ?? (venue as { state?: string }).state ?? ''),
-      },
+      address: { city, state },
       grass: Boolean(venue.grass),
       indoor: Boolean(venue.indoor),
-      image: Array.isArray(venue.images) ? venue.images.find((image) => image.href)?.href : undefined,
-      images: Array.isArray(venue.images) ? venue.images.map((image) => image.href) : undefined,
-    }
+      image: Array.isArray(venue.images)
+        ? (venue.images as { href?: string }[]).find((image) => image.href)?.href
+        : undefined,
+      images: Array.isArray(venue.images)
+        ? (venue.images as { href?: string }[]).map((image) => image.href).filter(Boolean) as string[]
+        : undefined,
+      ...(city ? { city } : {}),
+      ...(state ? { state } : {}),
+    } as Venue
     : null;
 
   const links = ((espn.links ?? []) as { href?: string; text?: string; rel?: string[] }[])
-    .filter((l) => l.href)
+    .filter((l) => l.href && !/^sportscenter:|^watchespn:/i.test(l.href))
     .map((l) => ({ href: l.href!, text: l.text ?? l.rel?.[0] ?? 'Link' }))
     .filter((obj, index, self) =>
       index === self.findIndex((t) => t.text === obj.text)
     );
 
   const group = resolveEspnGroups(espn.groups);
-  const recordSummary =
-    espn.record?.items?.[0]?.summary ?? espn.record?.items?.[0]?.displayValue ?? null;
+  const conferenceGroupId = conferenceGroupIdFromTeam(espn);
+  const recordMapped = mapRecordItems(
+    espn.record && 'items' in espn.record ? espn.record.items : undefined
+  );
   const rank = espn.rank != null && espn.rank > 0 ? espn.rank : null;
+  const conferenceName =
+    conference ?? group?.shortName ?? group?.name ?? conferenceNameFromGroupId(conferenceGroupId);
 
   return {
     id,
     school,
     mascot: espn.name ?? null,
     abbreviation: espn.abbreviation ?? null,
-    conference: conference ?? group?.shortName ?? group?.name ?? null,
+    conference: conferenceName,
     division: null,
     classification: 'fbs',
     color: espn.color ? `#${espn.color.replace('#', '')}` : null,
     alternateColor: espn.alternateColor ? `#${espn.alternateColor.replace('#', '')}` : null,
-    logos: resolveTeamLogos(id, espn.logos),
+    logos: resolveTeamLogos(id, espn.logos, espn.logo),
     twitter: (espn as { twitter?: string }).twitter ?? null,
     location,
     links: links.length ? links : null,
-    recordSummary,
+    recordSummary: recordMapped.recordSummary,
+    recordStats: recordMapped.recordStats,
     rank,
     standingSummary: espn.standingSummary ?? null,
-    conferenceGroupId: group?.id != null ? String(group.id) : null,
+    conferenceGroupId,
     nextEvent: mapEspnNextEvent(espn.nextEvent),
+    coach: espn.coach?.firstName || espn.coach?.lastName
+      ? { firstName: espn.coach.firstName ?? '', lastName: espn.coach.lastName ?? '' }
+      : null,
   };
-}
-
-async function fetchParsedStandings(
-  season: number,
-  group = FBS_GROUP,
-  options?: { cacheKey?: string; cacheTtlMs?: number }
-): Promise<SdvParsedStandingsRow[]> {
-  const cacheKey = options?.cacheKey ?? `standingsParsed:${season}:${group}`;
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbStandings({ season, group, parsed: true })) as SdvParsedStandingsRow[];
-  }, { cacheKey, cacheTtlMs: options?.cacheTtlMs });
-}
-
-function teamsFromParsedStandings(rows: SdvParsedStandingsRow[]): Team[] {
-  return rows
-    .map((row) => {
-      const id = Number(row.team_id);
-      if (!id) return null;
-      return mapEspnTeamToTeam(
-        {
-          id: row.team_id,
-          location: row.team_location,
-          name: row.team_name,
-          displayName: row.team_display_name,
-          abbreviation: row.team_abbreviation,
-          logos: resolveTeamLogos(row.team_id, undefined, row.team_logo)?.map((href) => ({ href })),
-        },
-        row.group_abbreviation ?? null
-      );
-    })
-    .filter(Boolean) as Team[];
 }
 
 type YearIndex = {
@@ -155,12 +213,16 @@ export class TeamIndex {
   }
 
   private static async loadYearInto(index: YearIndex, year: number, merge = false): Promise<void> {
-    const rows = await fetchParsedStandings(year, undefined, {
-      cacheKey: `fbsStandingsParsed:${year}`,
-      cacheTtlMs: 24 * 60 * 60 * 1000,
-    });
+    const raw = await fetchStandings(
+      { season: year },
+      { cacheKey: `fbsStandings:${year}`, cacheTtlMs: 24 * 60 * 60 * 1000 }
+    );
 
-    for (const team of teamsFromParsedStandings(rows)) {
+    for (const { entry, conference } of extractStandingsRows(raw)) {
+      const espn = entry.team;
+      if (!espn) continue;
+      const team = mapEspnTeamToTeam(espn, conference === 'FBS' ? null : conference);
+      if (!team.id) continue;
       if (merge && index.byId.has(team.id)) continue;
       TeamIndex.indexTeam(index, team);
     }
@@ -176,7 +238,6 @@ export class TeamIndex {
 
     await TeamIndex.loadYearInto(index, year);
 
-    // Upcoming-season standings can be sparse; fall back to prior-year membership.
     if (index.byId.size < 100) {
       await TeamIndex.loadYearInto(index, year - 1, true);
     }
@@ -193,10 +254,9 @@ export class TeamIndex {
     if (inflight) return inflight;
 
     const promise = this.buildIndex(year)
-      .then((index) => {
-        // Don't memoize empty results so transient ESPN failures retry.
-        if (index.byId.size > 0) this.indexes.set(year, index);
-        return index;
+      .then((built) => {
+        if (built.byId.size > 0) this.indexes.set(year, built);
+        return built;
       })
       .finally(() => {
         this.loadInflight.delete(year);
@@ -209,11 +269,6 @@ export class TeamIndex {
   async getAllTeams(year: number): Promise<Team[]> {
     const index = await this.load(year);
     return index.sortedTeams;
-  }
-
-  async getFbsTeamIds(year: number): Promise<Set<number>> {
-    const index = await this.load(year);
-    return new Set(index.byId.keys());
   }
 
   async resolveTeam(teamIdOrSchool: string, year: number): Promise<Team | null> {
@@ -258,4 +313,3 @@ export class TeamIndex {
 
 export const teamIndex = new TeamIndex();
 
-export { MAIN_CONFERENCE_IDS };
