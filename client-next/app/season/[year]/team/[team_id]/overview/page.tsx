@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useTeamPage } from "../TeamPageContext";
-import { useCoaches, useTeamLeaders, useTeamNews } from "@/lib/hooks/queries";
+import { useTeamLeaders, useTeamNews } from "@/lib/hooks/queries";
 import { PageSpinner } from "@/components/PageSpinner";
 import { withAlpha } from "@/lib/teamColors";
+import { BarChart } from "@/components/charts/BarChart";
+import type { GameWithOdds, TeamRecordStats } from "@/lib/types";
 
 function OverviewPanel({
   title,
@@ -30,23 +32,74 @@ function OverviewPanel({
   );
 }
 
+function isHomeTeam(game: GameWithOdds, school: string) {
+  return game.homeTeam === school;
+}
+
+function teamWon(game: GameWithOdds, school: string): boolean {
+  return (
+    (game.homeTeam === school && (game.homePoints ?? 0) > (game.awayPoints ?? 0)) ||
+    (game.awayTeam === school && (game.awayPoints ?? 0) > (game.homePoints ?? 0))
+  );
+}
+
+function formatStreak(streak: number | null | undefined): string | null {
+  if (streak == null || streak === 0) return null;
+  return streak > 0 ? `W${streak}` : `L${Math.abs(streak)}`;
+}
+
+function formatAvg(value: number | null | undefined): string | null {
+  if (value == null || Number.isNaN(value)) return null;
+  return value.toFixed(1);
+}
+
+function conferenceRecord(
+  stats: TeamRecordStats | null | undefined,
+  schedule: GameWithOdds[],
+  school: string
+): string | null {
+  if (stats?.conferenceSummary && stats.conferenceSummary !== "0-0") return stats.conferenceSummary;
+  const games = schedule.filter((g) => g.completed && g.conferenceGame);
+  if (!games.length) return null;
+  let wins = 0;
+  let losses = 0;
+  for (const game of games) {
+    if (teamWon(game, school)) wins += 1;
+    else losses += 1;
+  }
+  return `${wins}-${losses}`;
+}
+
 export default function TeamOverviewTab() {
   const { year, team, schedule, nextGame, style } = useTeamPage();
   const seasonNum = Number(year);
   const teamId = String(team.id);
   const accent = style.color;
-  const { data: coaches = [], isLoading: coachesLoading } = useCoaches(teamId, seasonNum);
   const { data: leaders = [] } = useTeamLeaders(teamId, seasonNum);
   const { data: news = [] } = useTeamNews(teamId, seasonNum, 5);
 
-  if (coachesLoading && schedule.length === 0) {
+  if (!team.school && schedule.length === 0) {
     return <PageSpinner heightClass="h-[30vh]" color={accent} />;
   }
 
   const completed = schedule.filter((g) => g.completed);
   const last = completed[completed.length - 1];
   const next = nextGame;
-  const coach = coaches[0];
+  const stats = team.recordStats;
+  const streak = formatStreak(stats?.streak);
+  const confRecord = conferenceRecord(stats, schedule, team.school);
+  const differential =
+    stats?.pointsFor != null && stats?.pointsAgainst != null
+      ? stats.pointsFor - stats.pointsAgainst
+      : null;
+
+  const scoringLabels = completed.map((g) => `Wk ${g.week || "?"}`);
+  const pointsFor = completed.map((g) =>
+    isHomeTeam(g, team.school) ? (g.homePoints ?? 0) : (g.awayPoints ?? 0)
+  );
+  const pointsAgainst = completed.map((g) =>
+    isHomeTeam(g, team.school) ? (g.awayPoints ?? 0) : (g.homePoints ?? 0)
+  );
 
   return (
     <div className="space-y-6 min-w-0">
@@ -74,25 +127,67 @@ export default function TeamOverviewTab() {
         </OverviewPanel>
       </div>
 
-      <OverviewPanel title="Coach" accent={accent}>
-        {coach ? (
-          <div className="text-sm text-foreground">
-            {[coach.firstName, coach.lastName].filter(Boolean).join(" ")}
-            {coach.schoolRecordSummary ? (
-              <span className="text-muted-foreground"> · School record {coach.schoolRecordSummary}</span>
-            ) : null}
-            <Link
-              href={`/season/${year}/team/${teamId}/coach`}
-              className="block text-xs mt-1 hover:underline"
-              style={{ color: accent }}
-            >
-              Coach details →
-            </Link>
+      {(stats || confRecord) && (
+        <OverviewPanel title="Season snapshot" accent={accent}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            {formatAvg(stats?.avgPointsFor) && (
+              <div>
+                <div className="text-xs text-muted-foreground">PPG</div>
+                <div className="font-medium">{formatAvg(stats?.avgPointsFor)}</div>
+              </div>
+            )}
+            {formatAvg(stats?.avgPointsAgainst) && (
+              <div>
+                <div className="text-xs text-muted-foreground">PAPG</div>
+                <div className="font-medium">{formatAvg(stats?.avgPointsAgainst)}</div>
+              </div>
+            )}
+            {differential != null && (
+              <div>
+                <div className="text-xs text-muted-foreground">Scoring margin</div>
+                <div className="font-medium">
+                  {differential > 0 ? "+" : ""}
+                  {differential}
+                </div>
+              </div>
+            )}
+            {streak && (
+              <div>
+                <div className="text-xs text-muted-foreground">Streak</div>
+                <div className="font-medium">{streak}</div>
+              </div>
+            )}
+            {confRecord && (
+              <div>
+                <div className="text-xs text-muted-foreground">Conference</div>
+                <div className="font-medium">{confRecord}</div>
+              </div>
+            )}
           </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">Coach unavailable.</p>
-        )}
-      </OverviewPanel>
+        </OverviewPanel>
+      )}
+
+      {completed.length > 0 && (
+        <OverviewPanel title="Scoring by week" accent={accent}>
+          <BarChart
+            labels={scoringLabels}
+            datasets={[
+              {
+                label: "Points for",
+                data: pointsFor,
+                backgroundColor: withAlpha(accent ?? "#2563eb", 0.75),
+                borderColor: accent ?? "#2563eb",
+              },
+              {
+                label: "Points against",
+                data: pointsAgainst,
+                backgroundColor: withAlpha(style.backgroundColor ?? "#71717a", 0.7),
+                borderColor: style.backgroundColor ?? "#71717a",
+              },
+            ]}
+          />
+        </OverviewPanel>
+      )}
 
       <OverviewPanel title="Key leaders" accent={accent}>
         <div className="flex items-center justify-end mb-2 -mt-1">

@@ -11,6 +11,6 @@
     "moduleResolution": "node",
     "allowJs": true,
   },
-  "include": ["server.ts", "lib/**/*.ts", "repos/**/*.ts", "seeds/**/*.ts", "routes/**/*.ts"], 
-  "exclude": ["node_modules", "client"]
+  "include": ["server.ts", "lib/**/*.ts", "repos/**/*.ts", "utils/**/*.ts", "routes/**/*.ts"],
+  "exclude": ["node_modules"]
 }

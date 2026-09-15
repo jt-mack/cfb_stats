@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   extractStandingsEntries,
-  mapParsedStandingsToRecord,
   mapStandingsEntryToRecord,
 } from "./conferences-repo";
 import type { SdvStandingsEntry, SdvStandingsResponse } from "../lib/espn-types";
@@ -19,31 +18,6 @@ describe("mapStandingsEntryToRecord", () => {
     };
 
     const rec = mapStandingsEntryToRecord(entry, 2024, "SEC");
-    assert.equal(rec.total.wins, 11);
-    assert.equal(rec.total.losses, 3);
-    assert.equal(rec.conferenceGames.wins, 6);
-    assert.equal(rec.conferenceGames.losses, 2);
-  });
-});
-
-describe("mapParsedStandingsToRecord", () => {
-  it("does not invent overall from bare wins when W-L strings are missing", () => {
-    const rec = mapParsedStandingsToRecord(
-      { team_id: 61, team_location: "Georgia", wins: 4 },
-      2024,
-      "SEC"
-    );
-    assert.equal(rec.total.wins, 0);
-    assert.equal(rec.total.losses, 0);
-    assert.equal(rec.conferenceGames.wins, 0);
-  });
-
-  it("uses string overall and vs_conf when present", () => {
-    const rec = mapParsedStandingsToRecord(
-      { team_id: 61, team_location: "Georgia", overall: "11-3", vs_conf: "6-2" },
-      2024,
-      "SEC"
-    );
     assert.equal(rec.total.wins, 11);
     assert.equal(rec.total.losses, 3);
     assert.equal(rec.conferenceGames.wins, 6);

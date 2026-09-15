@@ -4,7 +4,6 @@ import conferencesRoutes from './conferences-routes';
 import teamsRoutes from './teams-routes';
 import gamesRoutes from './games-routes';
 import seasonRoutes from './season-routes';
-import extrasRoutes from './extras-routes';
 import contentRoutes from './content-routes';
 
 /**
@@ -18,7 +17,6 @@ router.use(conferencesRoutes);
 router.use(teamsRoutes);
 router.use(gamesRoutes);
 router.use(seasonRoutes);
-router.use(extrasRoutes);
 router.use(contentRoutes);
 
 export default router;

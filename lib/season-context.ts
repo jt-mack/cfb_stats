@@ -1,5 +1,6 @@
 import { FbsRepo } from '../repos/fbs-repo';
-import { getCfb, getDefaultSeason, sdvRequest } from './espn-client';
+import { seasonInfo as fetchSeasonInfo } from './espn';
+import { getDefaultSeason } from './espn-client';
 import type { SdvSeasonInfo, SdvSeasonTypeInfo } from './espn-types';
 
 export type SeasonPhase = 'offseason' | 'preseason' | 'regular' | 'postseason';
@@ -136,10 +137,7 @@ export async function buildSeasonContext(year: number): Promise<SeasonContext> {
   let base: Omit<SeasonContext, 'hasPublishedRankings' | 'rankingsWeek'>;
 
   try {
-    const info = await sdvRequest(async () => {
-      const cfb = await getCfb();
-      return (await cfb.espnCfbSeasonInfo({ season: year })) as SdvSeasonInfo;
-    }, {
+    const info = await fetchSeasonInfo(year, {
       cacheKey: `seasonInfo:${year}`,
       cacheTtlMs: 60 * 60 * 1000,
     });

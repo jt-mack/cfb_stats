@@ -1,6 +1,3 @@
-import { getCfb, getDefaultSeason, sdvRequest } from '../lib/espn-client';
-import { FBS_GROUP } from '../lib/espn-constants';
-import type { SdvStandingsResponse } from '../lib/espn-types';
 import { teamIndex } from '../lib/team-index';
 import type { Team } from '../lib/types';
 import { fetchParsedRankings, parsePollRankMap } from './rankings-repo';
@@ -25,30 +22,11 @@ export class FbsRepo {
         cacheKey: `espnRankings:${year}`,
         cacheTtlMs: 15 * 60 * 1000,
       });
-      const rankMap = parsePollRankMap(raw);
-      if (rankMap.size > 0) return rankMap;
+      return parsePollRankMap(raw);
     } catch (err) {
       console.warn(`getRankingsFromPolls failed for ${year}:`, err instanceof Error ? err.message : err);
+      return new Map();
     }
-    return this.getRankingsFromStandings(year);
-  }
-
-  async getRankingsFromStandings(year: number): Promise<Map<number, number>> {
-    const standings = await sdvRequest(async () => {
-      const cfb = await getCfb();
-      return (await cfb.espnCfbStandings({ season: year, group: FBS_GROUP })) as SdvStandingsResponse;
-    }, {
-      cacheKey: `fbsStandingsRaw:${year}`,
-      cacheTtlMs: 15 * 60 * 1000,
-    });
-    const entries = standings.standings?.entries ?? [];
-    const rankMap = new Map<number, number>();
-    for (const entry of entries) {
-      const id = Number(entry.team?.id);
-      const rank = entry.team?.rank;
-      if (id && rank && rank > 0 && rank <= 99) rankMap.set(id, rank);
-    }
-    return rankMap;
   }
 
   async getFpiRankings(year: number): Promise<Map<string, number>> {
@@ -72,9 +50,6 @@ export class FbsRepo {
   }
 
   async getFbsTeamsWithRankings(year: number): Promise<FbsTeamWithRank[]> {
-    const defaultSeason = getDefaultSeason();
-    const isCurrentOrFuture = year >= defaultSeason;
-
     const teams = await this.getFbsTeams(year);
     const teamMap = new Map<number, FbsTeamWithRank>(
       teams.map((t) => [t.id, { ...t, rank: null, rankLabel: 'NR', rankSource: 'none' as RankSource }])
@@ -89,7 +64,7 @@ export class FbsRepo {
         if (t && rank <= 25) {
           t.rank = rank;
           t.rankSource = 'ap';
-          t.rankLabel = isCurrentOrFuture ? `AP #${rank}` : `AP #${rank}`;
+          t.rankLabel = `AP #${rank}`;
           ranked = true;
         }
       }
@@ -109,25 +84,8 @@ export class FbsRepo {
             team.rankLabel = `FPI #${rank}`;
           }
         }
-        ranked = fpiRanks.size > 0;
       } catch (err) {
         console.warn(`FPI rankings unavailable for ${year}:`, err instanceof Error ? err.message : err);
-      }
-    }
-
-    if (!ranked) {
-      try {
-        const priorRankMap = await this.getRankingsFromStandings(year - 1);
-        for (const [teamId, rank] of priorRankMap) {
-          const t = teamMap.get(teamId);
-          if (t && t.rankSource === 'none' && rank <= 25) {
-            t.rank = rank;
-            t.rankSource = 'prior_ap';
-            t.rankLabel = `${year - 1} Final #${rank}`;
-          }
-        }
-      } catch (err) {
-        console.warn(`Prior-year rankings unavailable:`, err instanceof Error ? err.message : err);
       }
     }
 

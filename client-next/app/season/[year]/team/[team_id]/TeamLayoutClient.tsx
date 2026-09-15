@@ -2,13 +2,12 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
-import type { Conference, GameWithOdds, TeamRecords } from "@/lib/types";
+import type { Conference, GameWithOdds } from "@/lib/types";
 import { useSeasonParams } from "@/lib/hooks/useSeasonParams";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import {
   useTeamInfo,
   useSeasonContext,
-  useStandings,
   useTeamRatings,
   useConferences,
   useSchedule,
@@ -52,6 +51,11 @@ function deriveNextGame(
   return schedule.find((g) => !g.completed) ?? null;
 }
 
+function coachDisplayName(team: { coach?: { firstName?: string; lastName?: string } | null }): string | null {
+  const name = [team.coach?.firstName, team.coach?.lastName].filter(Boolean).join(" ");
+  return name || null;
+}
+
 type TeamLayoutClientProps = {
   children: React.ReactNode;
 };
@@ -68,12 +72,11 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
   const activeSeason = useActiveSeason();
 
   const conference = useMemo(
-    () => (team?.conference ? resolveConference(team.conference, conferences) : undefined),
-    [team?.conference, conferences]
+    () => (team?.conference ? resolveConference(team.conference, conferences) : undefined)
+      ?? (team?.conferenceGroupId ? resolveConference(team.conferenceGroupId, conferences) : undefined),
+    [team?.conference, team?.conferenceGroupId, conferences]
   );
 
-  const confAbbr = conference?.abbreviation ?? team?.conference ?? undefined;
-  const { data: standings } = useStandings(confAbbr, seasonNum);
   const { data: ratings } = useTeamRatings(seasonNum, team?.school);
   const { data: schedule = [] } = useSchedule(team?.school, seasonNum);
 
@@ -91,15 +94,8 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
 
   const recordStr = useMemo(() => {
     if (team?.recordSummary) return team.recordSummary;
-    if (standings && team) {
-      const r = standings.find((rec: TeamRecords) => rec.teamId === team.id || rec.team === team.school);
-      if (seasonContext?.phase === "preseason" && (!r?.total?.games || r.total.games === 0)) {
-        return "0-0 (Preseason)";
-      }
-      if (r?.total) return `${r.total.wins}-${r.total.losses}`;
-    }
     return seasonContext?.phase === "preseason" ? "0-0 (Preseason)" : "0-0";
-  }, [team, standings, seasonContext?.phase]);
+  }, [team?.recordSummary, seasonContext?.phase]);
 
   if (!year || !teamId || !isValidSeason) {
     return <PageError message="Invalid route." />;
@@ -125,9 +121,13 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
 
   const visibleTabs = TEAM_TABS.filter((tab) => {
     if (tab.slug === "news") return isFeatureEnabled("teamNews", seasonNum, activeSeason);
-    if (tab.slug === "roster") return isFeatureEnabled("roster", seasonNum, activeSeason);
     return true;
   });
+
+  const confId = team.conferenceGroupId ?? (conference?.id != null ? String(conference.id) : null);
+  const standingHref = confId
+    ? `/season/${year}/conference/${confId}?team=${team.id}`
+    : null;
 
   const primary = style.color ?? "#18181b";
 
@@ -144,6 +144,10 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
         id={team.id}
         title={title}
         record={recordStr}
+        rank={team.rank}
+        coachName={coachDisplayName(team)}
+        standingSummary={team.standingSummary}
+        standingHref={standingHref}
         logo={team.logos?.[0] ?? ""}
         conferenceLogo={conference?.logo ?? null}
         favorite={favorite ?? false}
@@ -155,7 +159,11 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
         ratingChip={ratingChip}
         atsChip={atsChip}
       >
-        <TeamDetails team={team} conferenceName={conference?.name} />
+        <TeamDetails
+          team={team}
+          conferenceName={conference?.name}
+          conferenceHref={standingHref}
+        />
         <Tabs
           value={activeTab}
           onValueChange={(slug) => router.push(`${basePath}/${slug}`)}
@@ -164,9 +172,6 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
           <TabsList
             aria-label="Team sections"
             className={cn(
-              // Single compact row: horizontally scrollable (left-aligned) on
-              // phones; from sm upward the leftover space is distributed
-              // between the tabs (space-between) so they span edge to edge.
               "flex w-full h-auto justify-start gap-1 overflow-x-auto p-1",
               "sm:justify-between sm:overflow-visible"
             )}
@@ -208,9 +213,9 @@ export default function TeamLayoutClient({ children }: TeamLayoutClientProps) {
             conference,
             style,
             schedule,
-            standings,
             nextGame,
             recordStr,
+            standingHref,
           }}
         >
           <div className="mt-4">{children}</div>

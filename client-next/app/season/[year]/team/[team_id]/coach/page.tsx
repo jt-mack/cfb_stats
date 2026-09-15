@@ -1,9 +1,16 @@
 "use client";
 
-import { Coach } from "@/components/views/Coach";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTeamPage } from "../TeamPageContext";
 
-export default function TeamCoachPage() {
-  const { team, year } = useTeamPage();
-  return <Coach teamId={String(team.id)} season={year} />;
+export default function TeamCoachRedirect() {
+  const router = useRouter();
+  const { year, team } = useTeamPage();
+
+  useEffect(() => {
+    router.replace(`/season/${year}/team/${team.id}/overview`);
+  }, [router, team.id, year]);
+
+  return null;
 }

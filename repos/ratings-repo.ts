@@ -1,7 +1,8 @@
-import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
-import type { SdvParsedPowerIndexRow, SdvPredictiveMetric, SdvTeamScheduleResponse } from '../lib/espn-types';
+import { institutionTalent, recruitingComposite, seasonPowerIndex, type SdvRequestOptions } from '../lib/espn';
+import type { SdvParsedPowerIndexRow, SdvPredictiveMetric } from '../lib/espn-types';
 import { teamIndex } from '../lib/team-index';
 import type { AdvancedSeasonStat } from '../lib/types';
+import { idFromRef } from '../utils/parse';
 
 export type TeamRatingEntry = {
   team: string;
@@ -9,6 +10,22 @@ export type TeamRatingEntry = {
   rating: number;
   source: 'espn_fpi' | 'espn_efficiency';
   label: string;
+};
+
+export type TeamRecruitingRow = {
+  year: number;
+  team: string;
+  rank: number;
+  points: number;
+  source: '247sports' | 'espn_fpi_estimate';
+};
+
+export type TeamTalentRow = {
+  year: number;
+  teamId: number;
+  team: string;
+  talent: number;
+  source: '247sports' | 'espn_fpi';
 };
 
 function parseEfficiencyJson(raw: unknown): Record<string, number> {
@@ -26,8 +43,7 @@ function parseEfficiencyJson(raw: unknown): Record<string, number> {
 }
 
 export function teamIdFromRef(ref: string): number | null {
-  const idMatch = ref.match(/teams\/(\d+)/);
-  return idMatch ? parseInt(idMatch[1], 10) : null;
+  return idFromRef(ref, 'teams');
 }
 
 export function parsePowerIndexRow(row: SdvParsedPowerIndexRow): {
@@ -68,31 +84,12 @@ export function mapPowerIndexToAdvancedStats(
     .filter(Boolean) as AdvancedSeasonStat[];
 }
 
-export function fetchSeasonPowerIndex(
-  season: number,
-  options?: SdvRequestOptions
-): Promise<SdvParsedPowerIndexRow[]> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbSeasonPowerindex({ season, parsed: true })) as SdvParsedPowerIndexRow[];
-  }, {
-    cacheKey: `seasonPowerIndex:${season}`,
+export function fetchSeasonPowerIndex(season: number, options?: SdvRequestOptions) {
+  return seasonPowerIndex(season, {
+    cacheKey: options?.cacheKey ?? `seasonPowerIndex:${season}`,
     cacheTtlMs: options?.cacheTtlMs ?? 60 * 60 * 1000,
     timeoutMs: options?.timeoutMs,
   });
-}
-
-function fetchTeamScheduleRaw(
-  params: { teamId: number | string; season: number },
-  options?: SdvRequestOptions
-): Promise<SdvTeamScheduleResponse> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbTeamSchedule({
-      team_id: String(params.teamId),
-      season: params.season,
-    })) as SdvTeamScheduleResponse;
-  }, options);
 }
 
 export class RatingsRepo {
@@ -126,9 +123,8 @@ export class RatingsRepo {
       const idToSchool = new Map(teams.map((t) => [t.id, t.school]));
 
       return rows.map((row) => {
-        const ref = String(row.team_$ref ?? '');
-        const idMatch = ref.match(/teams\/(\d+)/);
-        const school = idMatch ? idToSchool.get(parseInt(idMatch[1], 10)) : undefined;
+        const teamId = teamIdFromRef(String(row.team_$ref ?? ''));
+        const school = teamId != null ? idToSchool.get(teamId) : undefined;
         let ranking = 0;
         let rating = 0;
         try {
@@ -152,76 +148,86 @@ export class RatingsRepo {
     }
   }
 
-  async getTeamAts(year: number, team?: string) {
-    if (!team) return [];
-
-    const teamId = await teamIndex.resolveTeamId(team, year);
-    const school = (await teamIndex.resolveSchoolName(team, year)) ?? team;
-    if (!teamId) return [];
-
+  async getTalent(year: number): Promise<TeamTalentRow[]> {
     try {
-      const schedule = await fetchTeamScheduleRaw({ teamId, season: year });
-      const events = schedule.events ?? [];
-
-      let covers = 0;
-      let pushes = 0;
-      let total = 0;
-
-      for (const event of events) {
-        const comp = (event.competitions as Record<string, unknown>[] | undefined)?.[0];
-        const odds = (comp?.odds as { spread?: number }[] | undefined)?.[0];
-        if (odds?.spread == null) continue;
-
-        const competitors = (comp?.competitors as Record<string, unknown>[] | undefined) ?? [];
-        const home = competitors.find((c) => c.homeAway === 'home');
-        const away = competitors.find((c) => c.homeAway === 'away');
-        const homeTeamInfo = home?.team as { location?: string; displayName?: string } | undefined;
-        const awayTeamInfo = away?.team as { location?: string; displayName?: string } | undefined;
-        const homeName = homeTeamInfo?.location ?? homeTeamInfo?.displayName ?? '';
-        const awayName = awayTeamInfo?.location ?? awayTeamInfo?.displayName ?? '';
-        const isHome = homeName.toLowerCase() === school.toLowerCase();
-        const isAway = awayName.toLowerCase() === school.toLowerCase();
-        if (!isHome && !isAway) continue;
-
-        const homeScore = Number((home?.score as { value?: number })?.value ?? home?.score);
-        const awayScore = Number((away?.score as { value?: number })?.value ?? away?.score);
-        if (Number.isNaN(homeScore) || Number.isNaN(awayScore)) continue;
-
-        total++;
-        const margin = homeScore - awayScore;
-        const spread = odds.spread;
-        const adjusted = isHome ? margin + spread : -(margin + spread);
-
-        if (adjusted > 0) covers++;
-        else if (adjusted === 0) pushes++;
-      }
-
-      const decisions = total - pushes;
-      return [{
-        team,
-        year,
-        games: total,
-        covers,
-        pushes,
-        coverPct: decisions ? covers / decisions : 0,
-      }];
+      const rows = await institutionTalent(year, {
+        cacheKey: `talent247:${year}`,
+        cacheTtlMs: 24 * 60 * 60 * 1000,
+        timeoutMs: 8_000,
+      });
+      const talent247 = rows
+        .map((row) => {
+          const team = String(row.institution_name ?? row.institutionName ?? row.team ?? '').trim();
+          const talent = Number(row.rating ?? row.talent ?? row.score ?? row.points ?? 0);
+          const teamId = Number(row.institution_id ?? row.team_id ?? 0);
+          if (!team || !talent) return null;
+          return { year, teamId: teamId || 0, team, talent, source: '247sports' as const };
+        })
+        .filter(Boolean) as TeamTalentRow[];
+      if (talent247.length > 0) return talent247;
     } catch (err) {
-      console.warn(`getTeamAts failed for ${team} ${year}:`, err instanceof Error ? err.message : err);
-      return [];
+      console.warn(`247Sports talent unavailable for ${year}:`, err instanceof Error ? err.message : err);
     }
+
+    const rows = await fetchSeasonPowerIndex(year).catch(() => []);
+    const teams = await teamIndex.getAllTeams(year);
+    const idToSchool = new Map(teams.map((t) => [t.id, t.school]));
+    return rows
+      .map((row) => {
+        const parsed = parsePowerIndexRow(row);
+        if (!parsed) return null;
+        const school = idToSchool.get(parsed.teamId);
+        if (!school) return null;
+        return {
+          year,
+          teamId: parsed.teamId,
+          team: school,
+          talent: parsed.fpi,
+          source: 'espn_fpi' as const,
+        };
+      })
+      .filter(Boolean) as TeamTalentRow[];
   }
 
-  async getTeamRatings(year: number, team: string) {
-    const [fpi, efficiency, ats] = await Promise.all([
-      this.getFpiRatings(year),
-      this.getEfficiencyRatings(year),
-      this.getTeamAts(year, team),
-    ]);
+  async getRecruitingRankings(year: number): Promise<TeamRecruitingRow[]> {
+    try {
+      const rows = await recruitingComposite(year, {
+        cacheKey: `recruiting247:${year}`,
+        cacheTtlMs: 24 * 60 * 60 * 1000,
+        timeoutMs: 8_000,
+      });
+      const real = rows
+        .map((row) => {
+          const team = String(row.institution_name ?? row.institutionName ?? row.team ?? row.school ?? '').trim();
+          const rank = Number(row.rank ?? row.ranking ?? row.overall_rank ?? 0);
+          const points = Number(row.rating ?? row.points ?? row.score ?? row.total_score ?? 0);
+          if (!team || !rank) return null;
+          return { year, team, rank, points, source: '247sports' as const };
+        })
+        .filter(Boolean) as TeamRecruitingRow[];
+      if (real.length > 0) return real;
+    } catch (err) {
+      console.warn(`247Sports recruiting unavailable for ${year}:`, err instanceof Error ? err.message : err);
+    }
 
-    return {
-      fpi: fpi.find((r) => r.team === team) ?? null,
-      efficiency: efficiency.find((r) => r.team === team) ?? null,
-      ats: ats[0] ?? null,
-    };
+    const rows = await fetchSeasonPowerIndex(year).catch(() => []);
+    const teams = await teamIndex.getAllTeams(year);
+    const idToSchool = new Map(teams.map((t) => [t.id, t.school]));
+    return rows
+      .map((row) => {
+        const parsed = parsePowerIndexRow(row);
+        if (!parsed?.rank) return null;
+        const school = idToSchool.get(parsed.teamId);
+        if (!school) return null;
+        return {
+          year,
+          team: school,
+          rank: parsed.rank,
+          points: parsed.fpi,
+          source: 'espn_fpi_estimate' as const,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (a!.rank ?? 999) - (b!.rank ?? 999)) as TeamRecruitingRow[];
   }
 }

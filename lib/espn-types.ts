@@ -1,14 +1,8 @@
 /**
- * Types for data returned by the sportsdataverse package.
+ * Types for data returned by the sportsdataverse / ESPN APIs.
  *
- * These mirror ESPN / SDV shapes — not our CFBD-compatible API types in `lib/types.ts`.
- * Raw types align with `sportsdataverse/dist/services/cfb.service.d.ts`.
- * Parsed types align with the snake_cased rows from `{ parsed: true }`.
+ * These mirror ESPN shapes — not our domain types in `lib/types.ts`.
  */
-
-// ---------------------------------------------------------------------------
-// Shared ESPN entity fragments
-// ---------------------------------------------------------------------------
 
 export interface SdvEspnTeam {
   id?: string | number;
@@ -26,16 +20,45 @@ export interface SdvEspnTeam {
   rank?: number;
   standingSummary?: string;
   logos?: { href?: string }[];
-  /** Standings entries often expose a single logo URL string. */
   logo?: string;
   links?: unknown[];
-  /** ESPN may return groups as an object (`{ id }`) or as an array of groups. */
   groups?:
-  | { id?: string; name?: string; shortName?: string }
-  | { id?: string; name?: string; shortName?: string }[];
+    | { id?: string; name?: string; shortName?: string; '$ref'?: string }
+    | { id?: string; name?: string; shortName?: string }[];
   coach?: { firstName?: string; lastName?: string };
-  record?: { items?: { summary?: string; displayValue?: string }[] };
+  record?: SdvTeamRecord | { '$ref'?: string };
+  ranks?: { '$ref'?: string };
+  coaches?: { '$ref'?: string };
   nextEvent?: Array<{ id?: string | number; name?: string; date?: string }>;
+}
+
+export interface SdvRef {
+  '$ref'?: string;
+}
+
+export interface SdvRecordStat {
+  name?: string;
+  value?: number;
+  displayValue?: string;
+}
+
+export interface SdvRecordItem {
+  description?: string;
+  type?: string;
+  name?: string;
+  summary?: string;
+  displayValue?: string;
+  stats?: SdvRecordStat[];
+}
+
+export interface SdvTeamRecord {
+  '$ref'?: string;
+  items?: SdvRecordItem[];
+}
+
+/** Core `espnCfbSeasonTeam` — identity inline, nested resources as `$ref`. */
+export interface SdvSeasonTeam extends SdvEspnTeam {
+  venue?: Record<string, unknown> & { '$ref'?: string; id?: string | number };
 }
 
 export interface SdvPredictiveMetric {
@@ -43,76 +66,6 @@ export interface SdvPredictiveMetric {
   value?: number;
 }
 
-// ---------------------------------------------------------------------------
-// Parsed rows (`{ parsed: true }` via generated ESPN wrappers)
-// ---------------------------------------------------------------------------
-
-/** Row from `sdv.cfb.espnCfbTeamSchedule({ parsed: true })`. */
-export interface SdvParsedTeamScheduleRow {
-  id?: string | number;
-  date?: string;
-  name?: string;
-  short_name?: string;
-  season_year?: number;
-  season_type_type?: number;
-  week_number?: number;
-  week_text?: string;
-  /** JSON string of competition objects (see `mapParsedTeamScheduleRow`). */
-  competitions?: string;
-}
-
-/** Row from `sdv.cfb.espnCfbScoreboard({ parsed: true })`. */
-export interface SdvParsedScoreboardRow {
-  game_id?: string | number;
-  date?: string;
-  name?: string;
-  short_name?: string;
-  season_year?: number;
-  season_type?: number;
-  neutral_site?: boolean;
-  conference_competition?: boolean;
-  venue_full_name?: string;
-  venue_city?: string;
-  venue_state?: string;
-  venue_id?: string | number;
-  venue_indoor?: boolean;
-  home_id?: string | number;
-  home_location?: string;
-  home_display_name?: string;
-  home_name?: string;
-  home_abbreviation?: string;
-  home_score?: string | number;
-  home_rank?: number;
-  home_winner?: boolean;
-  home_color?: string;
-  home_alternate_color?: string;
-  home_logo?: string;
-  away_id?: string | number;
-  away_location?: string;
-  away_display_name?: string;
-  away_name?: string;
-  away_abbreviation?: string;
-  away_score?: string | number;
-  away_rank?: number;
-  away_winner?: boolean;
-  away_color?: string;
-  away_alternate_color?: string;
-  away_logo?: string;
-  status_type_completed?: boolean;
-  status_type_state?: string;
-  status_type_description?: string;
-  status_type_name?: string;
-  status_type_short_detail?: string;
-  status_clock?: string;
-  status_display_clock?: string;
-  status_period?: number;
-  broadcast?: string;
-  attendance?: number;
-  note?: string;
-  uid?: string;
-}
-
-/** Row from `sdv.cfb.espnCfbSeasonPowerindex({ parsed: true })`. */
 export interface SdvParsedPowerIndexRow {
   season?: number;
   team_$ref?: string;
@@ -122,7 +75,6 @@ export interface SdvParsedPowerIndexRow {
   run_date_time_key?: string;
 }
 
-/** Row from `sdv.cfb.espnCfbTeamRoster({ parsed: true })`. */
 export interface SdvParsedRosterRow {
   id?: string | number;
   first_name?: string;
@@ -141,39 +93,6 @@ export interface SdvParsedRosterRow {
   experience_display_value?: string;
 }
 
-/** Row from `sdv.cfb.espnCfbConferences({ parsed: true })`. */
-export interface SdvParsedConferenceRow {
-  group_id?: string | number;
-  name?: string;
-  abbreviation?: string;
-  short_name?: string;
-  is_conference?: boolean;
-  parent_group_id?: string | number;
-  depth?: number;
-  children_count?: number;
-}
-
-/** Row from `sdv.cfb.espnCfbStandings({ parsed: true })`. */
-export interface SdvParsedStandingsRow {
-  group_name?: string;
-  group_abbreviation?: string;
-  team_id?: string | number;
-  team_name?: string;
-  team_abbreviation?: string;
-  team_display_name?: string;
-  team_location?: string;
-  team_logo?: string;
-  wins?: number;
-  overall?: string;
-  vs_conf?: string;
-  playoff_seed?: number;
-}
-
-// ---------------------------------------------------------------------------
-// Raw ESPN JSON from generated `espnCfb*` wrappers
-// ---------------------------------------------------------------------------
-
-/** Raw response from `espnCfbSummary({ event_id })`. */
 export interface SdvCfbSummaryRaw {
   boxscore?: unknown;
   gameInfo?: unknown;
@@ -189,19 +108,8 @@ export interface SdvCfbSummaryRaw {
   predictor?: unknown;
 }
 
-/** Raw response from `espnCfbTeam({ team_id })`. */
 export interface SdvTeamResponse {
   team?: SdvEspnTeam;
-}
-
-/** Row from `espnCfbCoach({ parsed: true })`. */
-export interface SdvParsedCoachRow {
-  id?: string | number;
-  first_name?: string;
-  last_name?: string;
-  career_records?: string;
-  coach_seasons?: string;
-  '$ref'?: string;
 }
 
 export interface SdvSeasonCoachEntry {
@@ -236,7 +144,6 @@ export interface SdvStandingsResponse {
   children?: unknown[];
 }
 
-/** Normalized game summary used by domain mappers. */
 export interface SdvCfbSummary {
   id: number;
   boxScore: unknown;
@@ -253,7 +160,6 @@ export interface SdvCfbSummary {
   standings: unknown;
 }
 
-/** Pick/odds slice from `espnCfbSummary`. */
 export interface SdvCfbPicks {
   id: number;
   gameInfo: unknown;
@@ -275,38 +181,6 @@ export interface SdvTeamScheduleResponse {
   events?: Record<string, unknown>[];
 }
 
-/** @deprecated No generated wrapper; use FBS_CONFERENCES constants. */
-export interface SdvConference {
-  id?: string | number;
-  name?: string;
-  abbreviation?: string;
-  shortName?: string;
-}
-
-/** @deprecated No generated wrapper; use FBS_CONFERENCES constants. */
-export interface SdvConferencesResponse {
-  conferences?: SdvConference[];
-}
-
-/** @deprecated Use fetchGameDrives / fetchGamePlays via espnCfbSummary. */
-export type SdvCfbPlayByPlay = SdvCfbSummaryRaw;
-
-/** @deprecated Use SdvTeamResponse */
-export type SdvTeamInfoResponse = SdvTeamResponse & {
-  team?: SdvEspnTeam & {
-    athletes?: Array<{
-      id?: string | number;
-      displayName?: string;
-      displayHeight?: string;
-      height?: unknown;
-      weight?: unknown;
-      jersey?: unknown;
-      position?: { abbreviation?: string };
-      experience?: { years?: number };
-    }>;
-  };
-};
-
 export interface SdvSeasonTypeInfo {
   id?: string | number;
   type?: number;
@@ -325,7 +199,6 @@ export interface SdvSeasonTypeInfo {
   };
 }
 
-/** Raw response from `espnCfbSeasonInfo({ season })` (Core seasons/{year}). */
 export interface SdvSeasonInfo {
   year?: number;
   startDate?: string;

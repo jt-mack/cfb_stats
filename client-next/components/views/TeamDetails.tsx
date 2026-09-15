@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import type { Team, TeamLocation } from "@/lib/types";
 import { MapPin, Building2, Users, Calendar, ExternalLink } from "lucide-react";
 
 type TeamDetailsProps = {
   team: Team;
   conferenceName?: string | null;
+  conferenceHref?: string | null;
 };
 
 /** Normalize location from API (camelCase or snake_case). */
@@ -30,15 +32,18 @@ function pickLoc<T>(loc: TeamLocation | null, ...keys: (keyof TeamLocation | str
   return undefined;
 }
 
-export function TeamDetails({ team, conferenceName }: TeamDetailsProps) {
+export function TeamDetails({ team, conferenceName, conferenceHref }: TeamDetailsProps) {
   const loc = getLocation(team);
   const venueName = pickLoc<string>(loc, "name");
-  const city = pickLoc<string>(loc, "city");
-  const state = pickLoc<string>(loc, "state");
+  const address = loc && typeof loc === "object"
+    ? (loc as TeamLocation & { address?: { city?: string; state?: string } }).address
+    : undefined;
+  const city = pickLoc<string>(loc, "city") ?? address?.city;
+  const state = pickLoc<string>(loc, "state") ?? address?.state;
   const capacity = pickLoc<number>(loc, "capacity");
   const constructionYear = pickLoc<number>(loc, "constructionYear", "construction_year");
   const grass = pickLoc<boolean>(loc, "grass");
-  const dome = pickLoc<boolean>(loc, "dome");
+  const dome = pickLoc<boolean>(loc, "dome", "indoor");
 
   const conference = conferenceName ?? team.conference;
   const division = team.division;
@@ -105,9 +110,14 @@ export function TeamDetails({ team, conferenceName }: TeamDetailsProps) {
               <span className="font-medium text-foreground/80">Conference</span>
             </div>
             <div className="text-foreground">
-              {conference && division
-                ? `${conference} · ${division}`
-                : conference ?? division ?? ""}
+              {conference && conferenceHref ? (
+                <Link href={conferenceHref} className="hover:underline">
+                  {conference}
+                </Link>
+              ) : (
+                conference
+              )}
+              {conference && division ? ` · ${division}` : !conference ? (division ?? "") : ""}
               {hasClassification && (
                 <span className="text-muted-foreground">
                   {conference || division ? " · " : ""}

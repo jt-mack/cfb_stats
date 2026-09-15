@@ -11,7 +11,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageSpinner, PageError } from "@/components/PageSpinner";
 import { Button } from "@/components/ui/button";
 
-export default function ConferencePageClient() {
+type ConferencePageClientProps = {
+  highlightTeamId?: string;
+};
+
+export default function ConferencePageClient({ highlightTeamId }: ConferencePageClientProps) {
   const router = useRouter();
   const { year, confId, seasonNum, isValidSeason } = useSeasonParams();
   const { data: conferences = [] } = useConferences();
@@ -51,7 +55,7 @@ export default function ConferencePageClient() {
         </Button>
         <h1 className="text-xl font-semibold text-foreground mt-2">{conf?.name ?? confId}</h1>
       </div>
-      <StandingsTable standings={standings} season={year} />
+      <StandingsTable standings={standings} season={year} activeTeamId={highlightTeamId} />
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {confTeams.map((t) => (
           <Card

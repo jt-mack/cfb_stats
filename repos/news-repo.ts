@@ -1,4 +1,4 @@
-import { getCfb, sdvRequest, type SdvRequestOptions } from '../lib/espn-client';
+import { news as fetchNews } from '../lib/espn';
 import type { NewsArticle } from '../lib/types';
 
 function parseJsonField<T>(value: unknown, fallback: T): T {
@@ -29,41 +29,9 @@ export function mapNewsRow(row: Record<string, unknown>): NewsArticle {
   };
 }
 
-function fetchNews(limit = 25, options?: SdvRequestOptions): Promise<Record<string, unknown>[]> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    return (await cfb.espnCfbNews({ limit, parsed: true })) as Record<string, unknown>[];
-  }, {
-    cacheKey: `news:${limit}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 10 * 60 * 1000,
-    timeoutMs: options?.timeoutMs,
-  });
-}
-
-function fetchTeamNews(
-  teamId: number | string,
-  limit = 15,
-  options?: SdvRequestOptions
-): Promise<Record<string, unknown>[]> {
-  return sdvRequest(async () => {
-    const cfb = await getCfb();
-    const rows = await cfb.espnCfbTeamNews({ team_id: teamId, limit, parsed: true });
-    return (Array.isArray(rows) ? rows : []) as Record<string, unknown>[];
-  }, {
-    cacheKey: `teamNews:${teamId}:${limit}`,
-    cacheTtlMs: options?.cacheTtlMs ?? 10 * 60 * 1000,
-    timeoutMs: options?.timeoutMs,
-  });
-}
-
 export class NewsRepo {
   async getNews(limit = 25): Promise<NewsArticle[]> {
-    const rows = await fetchNews(limit);
-    return (Array.isArray(rows) ? rows : []).map(mapNewsRow).filter((a) => a.id && a.headline);
-  }
-
-  async getTeamNews(teamId: number | string, limit = 15): Promise<NewsArticle[]> {
-    const rows = await fetchTeamNews(teamId, limit);
+    const rows = await fetchNews(limit, { cacheKey: `news:${limit}`, cacheTtlMs: 10 * 60 * 1000 });
     return (Array.isArray(rows) ? rows : []).map(mapNewsRow).filter((a) => a.id && a.headline);
   }
 }
