@@ -7,6 +7,8 @@
 import { getCfb, getSdv, sdvRequest, type SdvRequestOptions } from './espn-client';
 import { FBS_GROUP } from './espn-constants';
 import type {
+  SdvAthleteCore,
+  SdvAthleteStats,
   SdvCfbSummaryRaw,
   SdvParsedPowerIndexRow,
   SdvParsedRosterRow,
@@ -262,6 +264,48 @@ export function seasonInfo(season: number, options?: SdvRequestOptions) {
   );
 }
 
+/** Core athlete identity (not season-scoped). Follow `$ref`s for stats/team/college. */
+export async function athleteCore(
+  athleteId: number | string,
+  options?: SdvRequestOptions
+): Promise<SdvAthleteCore> {
+  try {
+    return await callCfb<SdvAthleteCore>((cfb) => {
+      if (typeof cfb.espnCfbAthleteCore !== 'function') {
+        throw new Error('NO_SDV_ATHLETE_CORE');
+      }
+      return cfb.espnCfbAthleteCore({ athlete_id: String(athleteId) });
+    }, options);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'NO_SDV_ATHLETE_CORE' || /is not a function/i.test(msg)) {
+      return espnGet<SdvAthleteCore>(ATHLETE_CORE_URL(athleteId), options);
+    }
+    throw err;
+  }
+}
+
+/** Site athlete career/season stats. Call without `season` to get the full log. */
+export async function athleteStats(
+  athleteId: number | string,
+  options?: SdvRequestOptions
+): Promise<SdvAthleteStats> {
+  try {
+    return await callCfb<SdvAthleteStats>((cfb) => {
+      if (typeof cfb.espnCfbAthleteStats !== 'function') {
+        throw new Error('NO_SDV_ATHLETE_STATS');
+      }
+      return cfb.espnCfbAthleteStats({ athlete_id: String(athleteId) });
+    }, options);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : '';
+    if (msg === 'NO_SDV_ATHLETE_STATS' || /is not a function/i.test(msg)) {
+      return espnGet<SdvAthleteStats>(ATHLETE_STATS_URL(athleteId), options);
+    }
+    throw err;
+  }
+}
+
 type RecruitingFn = (params: Record<string, unknown>) => Promise<Record<string, unknown>[]>;
 
 async function recruitingApi(): Promise<Record<string, RecruitingFn>> {
@@ -303,6 +347,12 @@ export const TEAM_LEADERS_V3 = (teamId: number, season: number) =>
 
 export const ATHLETE_URL = (season: number, athleteId: number) =>
   `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/${season}/athletes/${athleteId}?lang=en&region=us`;
+
+export const ATHLETE_CORE_URL = (athleteId: number | string) =>
+  `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/athletes/${athleteId}?lang=en&region=us`;
+
+export const ATHLETE_STATS_URL = (athleteId: number | string) =>
+  `https://site.web.api.espn.com/apis/common/v3/sports/football/college-football/athletes/${athleteId}/stats`;
 
 export const TEAM_SEASON_COACHES_URL = (season: number, teamId: number) =>
   `https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/${season}/teams/${teamId}/coaches`;

@@ -212,3 +212,113 @@ export interface SdvSeasonInfo {
   rankings?: { '$ref'?: string };
   leaders?: { '$ref'?: string };
 }
+
+export interface SdvEspnLink {
+  language?: string;
+  rel?: string[];
+  href?: string;
+  text?: string;
+  shortText?: string;
+  isExternal?: boolean;
+  isPremium?: boolean;
+}
+
+/** Core `espnCfbAthleteCore` — identity inline, nested resources as `$ref`. */
+export interface SdvAthleteCore {
+  id?: string | number;
+  uid?: string;
+  guid?: string;
+  type?: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  displayName?: string;
+  shortName?: string;
+  slug?: string;
+  weight?: number;
+  displayWeight?: string;
+  height?: number;
+  displayHeight?: string;
+  jersey?: string | number;
+  links?: SdvEspnLink[];
+  birthPlace?: {
+    city?: string;
+    state?: string;
+    country?: string;
+  };
+  birthCountry?: {
+    alternateId?: string;
+    abbreviation?: string;
+  };
+  college?: SdvRef;
+  headshot?: {
+    href?: string;
+    alt?: string;
+  };
+  flag?: {
+    href?: string;
+    alt?: string;
+    rel?: string[];
+  };
+  position?: {
+    id?: string;
+    name?: string;
+    displayName?: string;
+    abbreviation?: string;
+    leaf?: boolean;
+    parent?: SdvRef;
+    '$ref'?: string;
+  };
+  linked?: boolean;
+  team?: SdvRef;
+  statistics?: SdvRef;
+  experience?: {
+    years?: number;
+    displayValue?: string;
+    abbreviation?: string;
+  };
+  active?: boolean;
+  status?: {
+    id?: string;
+    name?: string;
+    type?: string;
+    abbreviation?: string;
+  };
+  statisticslog?: SdvRef;
+}
+
+/** Site `espnCfbAthleteStats` — career/season tables, no season query. */
+export interface SdvAthleteStatsTeam {
+  id?: string | number;
+  slug?: string;
+  abbreviation?: string;
+  shortDisplayName?: string;
+  displayName?: string;
+}
+
+export interface SdvAthleteStatsSeasonRow {
+  teamId?: string | number;
+  teamSlug?: string;
+  season?: { year?: number; displayName?: string };
+  stats?: string[];
+  position?: string;
+}
+
+export interface SdvAthleteStatsCategory {
+  name?: string;
+  displayName?: string;
+  labels?: string[];
+  names?: string[];
+  displayNames?: string[];
+  descriptions?: string[];
+  statistics?: SdvAthleteStatsSeasonRow[];
+  totals?: string[];
+  sortKey?: string;
+}
+
+export interface SdvAthleteStats {
+  filters?: unknown[];
+  teams?: Record<string, SdvAthleteStatsTeam>;
+  categories?: SdvAthleteStatsCategory[];
+  glossary?: Array<{ abbreviation?: string; displayName?: string }>;
+}

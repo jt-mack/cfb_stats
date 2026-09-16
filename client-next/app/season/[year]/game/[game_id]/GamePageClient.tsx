@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import Link from "next/link";
 import type { GamePreview, RosterPlayer } from "@/lib/types";
+import { athletePath } from "@/lib/athlete";
 
 type GamePageClientProps = {
   year: string;
@@ -362,6 +363,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
                     player={toRosterPlayer(entries[0])}
                     variant="stat-leader"
                     imgSize="thumbnail"
+                    href={athletePath(year, entries[0].playerId)}
                   >
                     <dl className="mt-2 space-y-1">
                       {entries.map((e) => (
@@ -392,6 +394,7 @@ export default function GamePageClient({ year, gameId }: GamePageClientProps) {
                     stats={playerStats.stats}
                     variant="stat-leader"
                     imgSize="thumbnail"
+                    href={athletePath(year, playerStats.player.id)}
                   />
                 ))}
               </div>

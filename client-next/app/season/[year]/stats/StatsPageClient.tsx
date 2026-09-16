@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { athletePath } from "@/lib/athlete";
 
 export default function StatsPageClient() {
   const { year, seasonNum, isValidSeason } = useSeasonParams();
@@ -82,7 +83,18 @@ export default function StatsPageClient() {
               {leaders.map((l) => (
                 <TableRow key={`${l.playerId}-${l.category}`}>
                   <TableCell className="text-foreground/80">{l.rank}</TableCell>
-                  <TableCell>{l.player}</TableCell>
+                  <TableCell>
+                    {athletePath(year, l.playerId) ? (
+                      <Link
+                        href={athletePath(year, l.playerId)!}
+                        className="text-foreground hover:underline underline-offset-2"
+                      >
+                        {l.player}
+                      </Link>
+                    ) : (
+                      l.player
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Link
                       href={`/season/${year}/team/${l.teamId}`}

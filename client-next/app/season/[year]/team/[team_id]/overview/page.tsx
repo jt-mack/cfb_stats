@@ -7,6 +7,7 @@ import { PageSpinner } from "@/components/PageSpinner";
 import { withAlpha } from "@/lib/teamColors";
 import { BarChart } from "@/components/charts/BarChart";
 import type { GameWithOdds, TeamRecordStats } from "@/lib/types";
+import { athletePath } from "@/lib/athlete";
 
 function OverviewPanel({
   title,
@@ -203,7 +204,15 @@ export default function TeamOverviewTab() {
           <ul className="space-y-1 text-sm">
             {leaders.slice(0, 6).map((l) => (
               <li key={l.category} className="text-foreground">
-                <span className="text-muted-foreground">{l.categoryDisplay}:</span> {l.player} ({l.displayValue})
+                <span className="text-muted-foreground">{l.categoryDisplay}:</span>{" "}
+                {l.playerId ? (
+                  <Link href={athletePath(year, l.playerId)!} className="hover:underline">
+                    {l.player}
+                  </Link>
+                ) : (
+                  l.player
+                )}{" "}
+                ({l.displayValue})
               </li>
             ))}
           </ul>

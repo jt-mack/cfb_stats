@@ -5,6 +5,7 @@ import teamsRoutes from './teams-routes';
 import gamesRoutes from './games-routes';
 import seasonRoutes from './season-routes';
 import contentRoutes from './content-routes';
+import athletesRoutes from './athletes-routes';
 
 /**
  * Routes index: mount all CFB API route modules. The /api/cfb prefix is
@@ -15,6 +16,7 @@ const router = Router();
 router.use(fbsRoutes);
 router.use(conferencesRoutes);
 router.use(teamsRoutes);
+router.use(athletesRoutes);
 router.use(gamesRoutes);
 router.use(seasonRoutes);
 router.use(contentRoutes);

@@ -9,6 +9,7 @@ export function useSeasonParams() {
   const teamId = params?.team_id as string | undefined;
   const gameId = params?.game_id as string | undefined;
   const confId = params?.conf_id as string | undefined;
+  const athleteId = params?.athlete_id as string | undefined;
 
   const seasonNum = year ? Number(year) : undefined;
   const weekNum = week ? Number(week) : undefined;
@@ -17,6 +18,7 @@ export function useSeasonParams() {
   const isValidSeason = seasonNum != null && !Number.isNaN(seasonNum);
   const isValidWeek = weekNum != null && !Number.isNaN(weekNum);
   const isValidGame = gameIdNum != null && !Number.isNaN(gameIdNum);
+  const isValidAthlete = Boolean(athleteId) && /^\d+$/.test(athleteId ?? "");
 
   return {
     year,
@@ -24,11 +26,13 @@ export function useSeasonParams() {
     teamId,
     gameId,
     confId,
+    athleteId,
     seasonNum: isValidSeason ? seasonNum : undefined,
     weekNum: isValidWeek ? weekNum : undefined,
     gameIdNum: isValidGame ? gameIdNum : undefined,
     isValidSeason,
     isValidWeek,
     isValidGame,
+    isValidAthlete,
   };
 }

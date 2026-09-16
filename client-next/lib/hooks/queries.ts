@@ -33,6 +33,7 @@ import {
   getTeamLeaders,
   getRankings,
 } from "@/lib/repos/contentRepo";
+import { getAthlete, getAthleteStats } from "@/lib/repos/athletesRepo";
 
 export function useDefaultSeason() {
   return useQuery({
@@ -265,5 +266,21 @@ export function useRankings(season: number | undefined) {
     queryFn: () => getRankings(season),
     enabled: season != null && !Number.isNaN(season),
     staleTime: 15 * 60 * 1000,
+  });
+}
+
+export function useAthlete(athleteId: string | undefined) {
+  return useQuery({
+    queryKey: ["athlete", athleteId],
+    queryFn: () => getAthlete(athleteId!),
+    enabled: Boolean(athleteId),
+  });
+}
+
+export function useAthleteStats(athleteId: string | undefined) {
+  return useQuery({
+    queryKey: ["athleteStats", athleteId],
+    queryFn: () => getAthleteStats(athleteId!),
+    enabled: Boolean(athleteId),
   });
 }
