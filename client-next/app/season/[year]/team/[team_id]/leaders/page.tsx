@@ -5,6 +5,7 @@ import { useTeamPage } from "../TeamPageContext";
 import { useTeamLeaders } from "@/lib/hooks/queries";
 import { PageSpinner, PageError } from "@/components/PageSpinner";
 import { PlayerCard } from "@/components/cards/PlayerCard";
+import { athletePath } from "@/lib/athlete";
 import type { LeaderEntry, RosterPlayer } from "@/lib/types";
 
 function toRosterPlayer(entry: LeaderEntry): RosterPlayer {
@@ -50,6 +51,7 @@ export default function TeamLeadersPage() {
             variant="stat-leader"
             imgSize="full"
             team={team}
+            href={athletePath(year, entries[0].playerId)}
           >
             <dl className="mt-2 space-y-1">
               {entries.map((e) => (

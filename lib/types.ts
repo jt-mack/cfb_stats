@@ -332,3 +332,51 @@ export interface LeaderEntry {
   displayValue: string;
   season: number;
 }
+
+export interface Athlete {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  displayName: string;
+  shortName: string;
+  slug: string | null;
+  jersey: string | null;
+  height: number | null;
+  displayHeight: string | null;
+  weight: number | null;
+  displayWeight: string | null;
+  headshot: string | null;
+  position: string | null;
+  positionName: string | null;
+  experience: string | null;
+  experienceYears: number | null;
+  birthPlace: string | null;
+  birthCountry: string | null;
+  flag: string | null;
+  active: boolean;
+  status: string | null;
+  teamId: number | null;
+  links: { href: string; text: string }[] | null;
+}
+
+export interface AthleteStatSeason {
+  season: number;
+  seasonLabel: string;
+  teamId: string | null;
+  team: string | null;
+  position: string | null;
+  values: string[];
+}
+
+export interface AthleteStatCategory {
+  name: string;
+  displayName: string;
+  labels: string[];
+  seasons: AthleteStatSeason[];
+  totals: string[];
+}
+
+export interface AthleteStats {
+  categories: AthleteStatCategory[];
+}

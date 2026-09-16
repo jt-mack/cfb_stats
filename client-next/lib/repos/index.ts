@@ -7,3 +7,4 @@ export * from "./gamesRepo";
 export * from "./seasonRepo";
 export * from "./extrasRepo";
 export * from "./contentRepo";
+export * from "./athletesRepo";

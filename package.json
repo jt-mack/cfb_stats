@@ -39,6 +39,6 @@
     "build:server": "tsc",
     "build:client": "cd client-next && npm run build",
     "heroku-postbuild": "npm run build",
-    "test:unit": "tsx --test repos/conferences-standings.test.ts repos/rankings.test.ts lib/season-context.test.ts lib/team-index.test.ts lib/game-mappers.test.ts lib/espn-powerindex.test.ts"
+    "test:unit": "tsx --test repos/conferences-standings.test.ts repos/rankings.test.ts lib/season-context.test.ts lib/team-index.test.ts lib/game-mappers.test.ts lib/espn-powerindex.test.ts lib/athlete-mappers.test.ts"
   }
 }

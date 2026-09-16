@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { formatHeightInches, formatPlayerYear, formatWeightPounds } from "@/lib/format";
 import type { RosterPlayer, Team } from "@/lib/types";
@@ -15,13 +16,14 @@ type PlayerCardProps = {
   variant: "roster" | "stat-leader";
   imgSize: "full" | "thumbnail"
   team?: Team | null;
+  href?: string | null;
   /** Custom stat content for the stat-leader variant; replaces the single stat_type/stat lines */
   children?: React.ReactNode;
 };
 
 const PLACEHOLDER_PIC = "/favicon.ico";
 
-export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSize = "thumbnail", team = undefined, children }: PlayerCardProps) {
+export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSize = "thumbnail", team = undefined, href = null, children }: PlayerCardProps) {
   const displayName = `${player.firstName} ${player.lastName}`;
   const imgDimensions = {
     width: imgSize === "full" ? "350" : "96",
@@ -49,8 +51,8 @@ export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSiz
   const statValue = stats.stat ?? "—";
   const logo = team?.logos?.[0] ?? (player.team as { logo?: string } | undefined)?.logo ?? undefined;
 
-  return (
-    <Card className="overflow-hidden gap-0 py-0 min-w-0">
+  const card = (
+    <Card className="overflow-hidden gap-0 py-0 min-w-0 h-full">
       {logo && (
         <CardHeader className="py-1 px-2 flex flex-row items-center justify-between">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -90,4 +92,14 @@ export function PlayerCard({ player, stats = {}, variant = "stat-leader", imgSiz
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block h-full hover:opacity-90">
+        {card}
+      </Link>
+    );
+  }
+
+  return card;
 }
