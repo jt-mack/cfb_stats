@@ -171,10 +171,7 @@ export function TeamCard({
           )}
         </div>
       </CardHeader>
-      <CardContent
-        className="pt-2 px-3 sm:px-6 bg-card text-card-foreground overflow-x-hidden"
-        style={{ boxShadow: `inset 0 3px 0 ${withAlpha(primary, 0.45)}` }}
-      >
+      <CardContent className="pt-2 px-3 sm:px-6 bg-card text-card-foreground overflow-x-hidden">
         {conferenceLogo ? (
           <div className="flex justify-center pb-2">
             <Image

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { Team, TeamLocation } from "@/lib/types";
 import { MapPin, Building2, Users, Calendar, ExternalLink } from "lucide-react";
 
@@ -35,6 +36,7 @@ function pickLoc<T>(loc: TeamLocation | null, ...keys: (keyof TeamLocation | str
 export function TeamDetails({ team, conferenceName, conferenceHref }: TeamDetailsProps) {
   const loc = getLocation(team);
   const venueName = pickLoc<string>(loc, "name");
+  const venueImage = pickLoc<string>(loc, "image");
   const address = loc && typeof loc === "object"
     ? (loc as TeamLocation & { address?: { city?: string; state?: string } }).address
     : undefined;
@@ -68,11 +70,14 @@ export function TeamDetails({ team, conferenceName, conferenceHref }: TeamDetail
   return (
     <div className="mb-4 rounded-lg border border-border bg-background/50 p-3 sm:p-4 text-sm">
       <div className="flex flex-wrap gap-x-6 gap-y-3">
+        {venueImage && (<Image src={venueImage} alt={venueName ?? ""} width={150} height={150} />)}
         {hasVenue && (
           <div className="flex flex-col gap-1 min-w-0">
+
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Building2 className="h-4 w-4 shrink-0" />
               <span className="font-medium text-foreground/80">Home venue</span>
+
             </div>
             <div className="text-foreground">
               {venueName && <span className="font-medium">{venueName}</span>}
@@ -100,6 +105,7 @@ export function TeamDetails({ team, conferenceName, conferenceHref }: TeamDetail
                 <span>{surface}</span>
               )}
             </div>
+
           </div>
         )}
 
